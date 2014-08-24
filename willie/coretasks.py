@@ -66,7 +66,7 @@ def startup(bot, trigger):
             'LOGIN %s %s' % (bot.config.core.x_username,
                              bot.config.core.x_password)
         )
-        bot.write(['MODE', '+x', bot.nick])
+        bot.write(['MODE', bot.nick, '+x'])
 
     if (bot.config.core.oper_name is not None
             and bot.config.core.oper_password is not None):

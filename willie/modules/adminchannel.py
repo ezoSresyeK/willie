@@ -183,9 +183,9 @@ def cset(bot, trigger, text):
 
 
 def hascap(bot, place, user, req):
-    if not bot.db.check_table(sescapet(place), gattr['cols'],
+    if not bot.db.check_table(sescapet(place).lower(), gattr['cols'],
                               gattr['id']):
-        bot.db.add_table(sescapet(place), gattr['cols'], gattr['id'])
+        bot.db.add_table(sescapet(place).lower(), gattr['cols'], gattr['id'])
     privs = str()
     privs += getusr(bot, sescapet(place), sescapet(user))
     privs += getusr(bot, 'gattr', sescapet(user))
@@ -198,7 +198,8 @@ def hascap(bot, place, user, req):
 
 
 def sescapet(thing):
-    return thing.replace("'", "''").replace('#', "ccc")
+    ret = thing.replace("'", '|')
+    return ret.replace('#', "ccc")
 
 
 @commands('attr')
@@ -520,5 +521,8 @@ def autovoice(bot, trigger):
     nick = trigger.nick
     chan = trigger.sender
 
-    if hascap(bot, chan, '@', 'v'):
-        bot.write(['MODE', chan, '+v', nick])
+    try:
+        if hascap(bot, chan, '@', 'v'):
+            bot.write(['MODE', chan, '+v', nick])
+    except:
+        return
