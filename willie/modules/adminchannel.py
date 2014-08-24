@@ -1,108 +1,357 @@
 # coding=utf8
 """
-admin.py - Willie Admin Module
-Copyright 2010-2011, Michael Yanovich, Alek Rollyson, and Edward Powell
-Copyright © 2012, Elad Alfassa <elad@fedoraproject.org>
-Licensed under the Eiffel Forum License 2.
+adminchannel - Chan Management module
 
-http://willie.dftba.net/
+Copyright 2014 - KeyserSoze
+Licensed under MIT License
 
 """
+
 from __future__ import unicode_literals
 
 import re
-from willie.module import commands, priority, OP
+from willie.module import commands, priority, OP, example, rule, event
 from willie.tools import Nick
+from willie.config import ConfigurationError
+from willie import db
+
+gattr = {}
+gattr['name'] = 'gattr'
+gattr['id'] = 'usr'
+gattr['cols'] = ['usr', 'attr']
+
+
+def check_attr_db(bot):
+    if not bot.db:
+        raise ConfigurationError("Database not set up or unavail")
+    if not bot.db.check_table(gattr['name'], gattr['cols'],
+                              gattr['id']):
+        bot.db.add_table(gattr['name'], gattr['cols'], gattr['id'])
+    return
+
+
+def display_help(bot, trigger):
+    bot.msg(trigger.nick, 'Changes attributes - To use attr:')
+    bot.msg(trigger.nick,
+            '.attr [g,c] [user,chan] (channel) [+,-] [(AaOoVvpb),(vpo)]')
+    bot.msg(trigger.nick,
+            '[g,c] = global/chan, only >A can access g')
+    bot.msg(trigger.nick,
+            '[user,chan] = (as expected), selects on which you\
+            wish to set attributes')
+    bot.msg(trigger.nick,
+            '(channel) channel on which user is to be set')
+    bot.msg(trigger.nick,
+            '[+/-] = add or remove flags')
+    bot.msg(trigger.nick,
+            '[(AaOoVvpb),(vpo)] = available flags to set,\
+            former on users, latter on channels')
+    bot.msg(trigger.nick, 'O = global owner, can do all attributes')
+    bot.msg(trigger.nick, 'A = global admin, can not set +O\
+            can set all other modes')
+    bot.msg(trigger.nick, 'o = channel owner, can set flags for\
+            apb on users')
+    bot.msg(trigger.nick, 'a = chan admin, can set flags pb')
+    bot.msg(trigger.nick, 'V = voice user in all channels')
+    bot.msg(trigger.nick, 'v = voice user on current channel')
+    bot.msg(trigger.nick, 'p = protect user from chan protect')
+    bot.msg(trigger.nick, 'b = user is banned')
+    bot.msg(trigger.nick, 'chan modes - only settable by users\
+            with +O or +A or +o or +a:')
+    bot.msg(trigger.nick, 'v = voice all on chan')
+    bot.msg(trigger.nick, 'p = protect chan from flooding')
+    bot.msg(trigger.nick, 'o = use services to get op')
+    bot.msg(trigger.nick, 'for a list of users and access, do\
+            .attr list [chan,user,global] (#chan,user)')
+
+
+def setusr(bot, table, user, privs):
+    oprivs = getusr(bot, sescapet(table), sescapet(user))
+    nprivs = str()
+    rprivs = str()
+
+    if not privs[0] == '+':
+        bot.say("the privs must start with +")
+        return "Fail"
+
+    if '-' not in privs:
+        nprivs = privs
+        rprivs = '*'
+    else:
+        nprivs = privs.split('-')[0]
+        rprivs = privs.split('-')[1]
+
+    for c in oprivs:
+        if c not in rprivs:
+            nprivs += c
+
+    privs = {}
+    privs['attr'] = sescapet(nprivs[1:])
+    getattr(bot.db, sescapet(table)).update(sescapet(user), privs)
+    return "Set %s on %s" % (user, nprivs)
+
+
+def getusr(bot, table, user):
+    if not bot.db.check_table(table, gattr['cols'], gattr['id']):
+        bot.db.add_table(table, gattr['cols'], gattr['id'])
+        return ""
+
+    exit = True
+    for key in getattr(bot.db, table).keys('usr'):
+        if key[0] == user:
+            exit = False
+    if exit:
+        return ""
+
+    privs = getattr(bot.db, table).get(user, ['attr'])
+    return privs[0]
+
+
+def list_access(bot, trigger, text):
+    if text[2] == 'chan':
+        if not hascap(bot, text[3], trigger.nick, 'AaOo'):
+            return
+
+        chanattr = str()
+        for key in getattr(bot.db, sescapet(text[3])).keys('usr'):
+            if key[0] == '@':
+                chanattr = getattr(bot.db, sescapet(text[3])).get(
+                    key[0], ['attr'], 'usr')
+                continue
+            privs = getattr(bot.db, sescapet(text[3])).get(key[0],
+                                                           ['attr'],
+                                                           'usr')
+            bot.say("User %s: %s" % (key[0], privs[0]))
+        bot.say("Channel %s: %s" % (text[3], chanattr[0]))
+    elif text[2] == 'global':
+        if not hascap(bot, 'gattr', trigger.nick, 'AO'):
+            return
+
+        for key in getattr(bot.db, 'gattr').keys('usr'):
+            privs = getattr(bot.db, 'gattr').get(key[0], ['attr'],
+                                                 'usr')
+            bot.say("Global %s: %s" % (key[0], privs[0]))
+    elif text[2] == 'user':
+        privs = getusr(bot, sescapet(trigger.sender),
+                       sescapet(text[3]))
+        bot.say('%s modes: %s' % (text[3], privs[0]))
+        return
+
+
+def gset(bot, trigger, text):
+    if not hascap(bot, 'gattr', trigger.nick, 'AO'):
+        if not trigger.owner:
+            return
+
+    if not hascap(bot, 'gattr', trigger.nick, 'O'):
+        if not trigger.owner:
+            if 'O' in text[3]:
+                return
+    usr = text[2]
+    privs = text[3]
+    bot.say(setusr(bot, 'gattr', usr, privs))
+    return
+
+
+def cset(bot, trigger, text):
+    if text[2][0] == '#':
+        if not hascap(bot, text[2], trigger.nick, 'AaOo'):
+            if not trigger.owner:
+                return
+        setusr(bot, text[2], '@', text[3])
+        bot.say('Set chan (%s) mode %s' % (text[2], text[3]))
+    else:
+        user = text[2]
+        chan = text[3]
+        privs = text[4]
+
+        if not hascap(bot, chan, trigger.nick, 'AaOo'):
+            if not trigger.owner:
+                return
+        if ('A' in privs or 'O' in privs):
+            return
+        if 'o' in privs and (not hascap(bot, chan, trigger.nick,
+                                        'AOo')):
+            if not trigger.owner:
+                return
+
+        setusr(bot, chan, user, privs)
+        bot.say('Set user (%s) on chan (%s) mode (%s)' %
+                (user, chan, privs))
+
+    return
+
+
+def hascap(bot, place, user, req):
+    if not bot.db.check_table(sescapet(place), gattr['cols'],
+                              gattr['id']):
+        bot.db.add_table(sescapet(place), gattr['cols'], gattr['id'])
+    privs = str()
+    privs += getusr(bot, sescapet(place), sescapet(user))
+    privs += getusr(bot, 'gattr', sescapet(user))
+    ret = False
+    for c in req:
+        for c2 in privs:
+            if c2 == c:
+                ret = True
+    return ret
+
+
+def sescapet(thing):
+    return thing.replace("'", "''").replace('#', "ccc")
+
+
+@commands('attr')
+@priority('high')
+def attr(bot, trigger):
+    """
+    Command to change global attributes of users as well as chan
+     attributes. Do .attr help to understand.
+    """
+    check_attr_db(bot)
+
+    try:
+        text = trigger.group().split()
+    except:
+        display_help(bot, trigger)
+        return
+
+    try:
+        if text[1] == 'help':
+            display_help(bot, trigger)
+            return
+        elif text[1] == 'list':
+            list_access(bot, trigger, text)
+            return
+        elif text[1] == 'g':
+            gset(bot, trigger, text)
+        elif text[1] == 'c':
+            cset(bot, trigger, text)
+    except:
+        bot.say("See .attr help.")
+    return
 
 
 def setup(bot):
-    #Having a db means pref's exists. Later, we can just use `if bot.db`.
     if bot.db and not bot.db.preferences.has_columns('topic_mask'):
-        bot.db.preferences.add_columns(['topic_mask'])
+        bot.db.preferences.add_collumns(['topic_mask'])
 
 
-@commands('op')
+def hasaccess(bot, trigger, chan, nick, req, emulate_protected):
+    req = "AaOo"
+    hasax = hascap(bot, chan, nick, req)
+    sender_hasax = hascap(bot, chan, trigger.nick, req)
+    protected = hascap(bot, chan, '@', 'p')
+    isoponchan = bot.privileges[chan][trigger.nick] >= OP
+
+    if emulate_protected:
+        protected = True
+
+    if protected:
+        if not (sender_hasax or isoponchan):
+            return False
+    else:
+        if not (hasax or isoponchan or sender_hasax):
+            return False
+    return True
+
+
+def getwhowhere(bot, trigger):
+    text = trigger.group().split()
+    chan = str()
+    nick = str()
+    lastidx = 1
+
+    if len(text) == 1:
+        chan = trigger.sender
+        nick = trigger.nick
+    elif len(text) == 2:
+        print('here')
+        chan = trigger.sender
+        nick = text[1]
+        lastidx = 2
+    elif len(text) >= 3:
+        if text[1][0] == '#':
+            chan = text[1]
+            nick = text[2]
+            lastidx = 3
+        else:
+            chan = trigger.sender
+            nick = text[1]
+            lastidx = 2
+
+    print(chan, nick, lastidx)
+
+    return (chan, nick, lastidx)
+
+
+def moduser(bot, trigger, emulate_protected, mode, req):
+    whowhere = getwhowhere(bot, trigger)
+    chan = whowhere[0]
+    nick = whowhere[1]
+
+    if not hasaccess(bot, trigger, chan, nick, req,
+                     emulate_protected):
+        return
+
+    bot.write(['MODE', chan, mode, nick])
+    bot.say('set mode %s on %s in %s (%s)' %
+            (mode, nick, chan, trigger.nick))
+
+
+@commands('op', 'o')
+@priority('high')
 def op(bot, trigger):
     """
-    Command to op users in a room. If no nick is given,
-    willie will op the nick who sent the command
+    Command to op users, if no nick given, or chan, ops user
+     calling.
     """
-    if bot.privileges[trigger.sender][trigger.nick] >= OP:
-        nick = trigger.group(2)
-        channel = trigger.sender
-        if not nick:
-            nick = trigger.nick
-        bot.write(['MODE', channel, "+o", nick])
+    moduser(bot, trigger, False, '+o', 'AaOo')
 
 
 @commands('deop')
+@priority('high')
 def deop(bot, trigger):
     """
-    Command to deop users in a room. If no nick is given,
-    willie will deop the nick who sent the command
+    Command to deop users, operates in similar manner to op.
     """
-    if bot.privileges[trigger.sender][trigger.nick] >= OP:
-        nick = trigger.group(2)
-        channel = trigger.sender
-        if not nick:
-            nick = trigger.nick
-        bot.write(['MODE', channel, "-o", nick])
+    moduser(bot, trigger, True, '-o', 'AaOo')
 
 
-@commands('voice')
+@commands('voice', 'v')
+@priority('low')
 def voice(bot, trigger):
     """
-    Command to voice users in a room. If no nick is given,
-    willie will voice the nick who sent the command
+    Command to voice users, behaves as op.
     """
-    if bot.privileges[trigger.sender][trigger.nick] >= OP:
-        nick = trigger.group(2)
-        channel = trigger.sender
-        if not nick:
-            nick = trigger.nick
-        bot.write(['MODE', channel, "+v", nick])
+    moduser(bot, trigger, False, '+v', 'AaOoVv')
 
 
-@commands('devoice')
+@commands('devoice', 'dv')
+@priority('high')
 def devoice(bot, trigger):
     """
-    Command to devoice users in a room. If no nick is given,
-    willie will devoice the nick who sent the command
+    Command to devoice users, behaves as deop.
     """
-    if bot.privileges[trigger.sender][trigger.nick] >= OP:
-        nick = trigger.group(2)
-        channel = trigger.sender
-        if not nick:
-            nick = trigger.nick
-        bot.write(['MODE', channel, "-v", nick])
+    moduser(bot, trigger, True, '-v', 'AaOoVv')
 
 
-@commands('kick')
+@commands('kick', 'k')
 @priority('high')
 def kick(bot, trigger):
     """
-    Kick a user from the channel.
+    Kicks user, must be op in chan, or have access.
     """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
-        return
-    text = trigger.group().split()
-    argc = len(text)
-    if argc < 2:
-        return
-    opt = Nick(text[1])
-    nick = opt
-    channel = trigger.sender
-    reasonidx = 2
-    if not opt.is_nick():
-        if argc < 3:
-            return
-        nick = text[2]
-        channel = opt
-        reasonidx = 3
-    reason = ' '.join(text[reasonidx:])
-    if nick != bot.config.nick:
-        bot.write(['KICK', channel, nick, reason])
+    whowhere = getwhowhere(bot, trigger)
+    chan = whowhere[0]
+    nick = whowhere[1]
+    reason = ' '.join(trigger.group().split()[whowhere[2]:])
 
+    if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
+        return
+
+    bot.write(['KICK', chan, nick,
+               ':(' + trigger.nick + ') ' + reason])
 
 def configureHostMask(mask):
     if mask == '*!*@*':
@@ -126,150 +375,90 @@ def configureHostMask(mask):
     return ''
 
 
-@commands('ban')
+def banman(bot, trigger, mode):
+    whowhere = getwhowhere(bot, trigger)
+    chan = whowhere[0]
+    nick = configureHostMask(whowhere[1])
+
+    if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
+        return
+
+    bot.write(['MODE', chan, mode, nick])
+
+
+@commands('ban', 'b')
 @priority('high')
 def ban(bot, trigger):
     """
-    This give admins the ability to ban a user.
-    The bot must be a Channel Operator for this command to work.
+    Bans user, must be op in chan, or have access.
     """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
-        return
-    text = trigger.group().split()
-    argc = len(text)
-    if argc < 2:
-        return
-    opt = Nick(text[1])
-    banmask = opt
-    channel = trigger.sender
-    if not opt.is_nick():
-        if argc < 3:
-            return
-        channel = opt
-        banmask = text[2]
-    banmask = configureHostMask(banmask)
-    if banmask == '':
-        return
-    bot.write(['MODE', channel, '+b', banmask])
+    banman(bot, trigger, '+b')
 
 
 @commands('unban')
+@priority('high')
 def unban(bot, trigger):
     """
-    This give admins the ability to unban a user.
-    The bot must be a Channel Operator for this command to work.
+    Unbans a user, behaves similar to devoice.
     """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
-        return
-    text = trigger.group().split()
-    argc = len(text)
-    if argc < 2:
-        return
-    opt = Nick(text[1])
-    banmask = opt
-    channel = trigger.sender
-    if not opt.is_nick():
-        if argc < 3:
-            return
-        channel = opt
-        banmask = text[2]
-    banmask = configureHostMask(banmask)
-    if banmask == '':
-        return
-    bot.write(['MODE', channel, '-b', banmask])
+    banman(bot, trigger, '-b')
 
 
 @commands('quiet')
+@priority('high')
 def quiet(bot, trigger):
     """
-    This gives admins the ability to quiet a user.
-    The bot must be a Channel Operator for this command to work
+    Quiets a user, works similar to op, only works on certain
+     networks.
     """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
-        return
-    text = trigger.group().split()
-    argc = len(text)
-    if argc < 2:
-        return
-    opt = Nick(text[1])
-    quietmask = opt
-    channel = trigger.sender
-    if not opt.is_nick():
-        if argc < 3:
-            return
-        quietmask = text[2]
-        channel = opt
-    quietmask = configureHostMask(quietmask)
-    if quietmask == '':
-        return
-    bot.write(['MODE', channel, '+q', quietmask])
+    moduser(bot, trigger, False, '+q', 'AaOo')
 
 
 @commands('unquiet')
+@priority('high')
 def unquiet(bot, trigger):
     """
-   This gives admins the ability to unquiet a user.
-   The bot must be a Channel Operator for this command to work
-   """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
-        return
-    text = trigger.group().split()
-    argc = len(text)
-    if argc < 2:
-        return
-    opt = Nick(text[1])
-    quietmask = opt
-    channel = trigger.sender
-    if not opt.is_nick():
-        if argc < 3:
-            return
-        quietmask = text[2]
-        channel = opt
-    quietmask = configureHostMask(quietmask)
-    if quietmask == '':
-        return
-    bot.write(['MODE', opt, '-q', quietmask])
+    Unquiets a user, works similar to deop, only works on certain
+     networks
+    """
+    moduser(bot, trigger, True, '+q', 'AaOo')
 
 
 @commands('kickban', 'kb')
 @priority('high')
 def kickban(bot, trigger):
     """
-   This gives admins the ability to kickban a user.
-   The bot must be a Channel Operator for this command to work
-   .kickban [#chan] user1 user!*@* get out of here
-   """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
+    Kicks and bans a user, works similar to ban and then kick.
+    """
+    ban(bot, trigger)
+    kick(bot, trigger)
+
+
+@commands('invite')
+@priority('low')
+def invite(bot, trigger):
+    """
+    invites a user to the chan, works like op
+    """
+    whowhere = getwhowhere(bot, trigger)
+    chan = whowhere[0]
+    nick = whowhere[1]
+
+    if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
-    text = trigger.group().split()
-    argc = len(text)
-    if argc < 4:
-        return
-    opt = Nick(text[1])
-    nick = opt
-    mask = text[2]
-    reasonidx = 3
-    if not opt.is_nick():
-        if argc < 5:
-            return
-        channel = opt
-        nick = text[2]
-        mask = text[3]
-        reasonidx = 4
-    reason = ' '.join(text[reasonidx:])
-    mask = configureHostMask(mask)
-    if mask == '':
-        return
-    bot.write(['MODE', channel, '+b', mask])
-    bot.write(['KICK', channel, nick, ' :', reason])
+
+    bot.write(['INVITE', nick, chan])
+    bot.say("Inviting %s courtesy of %s to %s" %
+            (nick, trigger.nick, chan))
 
 
 @commands('topic')
 def topic(bot, trigger):
     """
-    This gives ops the ability to change the topic.
-    """
+    This gives ops the ability to change the topic.…                                                                                                   2…
     purple, green, bold = '\x0306', '\x0310', '\x02'
+    """
+
     if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group(2)
@@ -302,8 +491,7 @@ def topic(bot, trigger):
 @commands('tmask')
 def set_mask(bot, trigger):
     """
-    Set the mask to use for .topic in the current channel. %s is used to allow
-    substituting in chunks of text.
+    Set the mask to use for .topic in the current channel. %s is used to allow…                                                                        3…
     """
     if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
@@ -312,7 +500,6 @@ def set_mask(bot, trigger):
     else:
         bot.db.preferences.update(trigger.sender.lower(), {'topic_mask': trigger.group(2)})
         bot.say("Gotcha, " + trigger.nick)
-
 
 @commands('showmask')
 def show_mask(bot, trigger):
@@ -324,4 +511,14 @@ def show_mask(bot, trigger):
     elif trigger.sender.lower() in bot.db.preferences:
         bot.say(bot.db.preferences.get(trigger.sender.lower(), 'topic_mask'))
     else:
-        bot.say("%s")
+       bot.say("%s")
+
+
+@event('JOIN')
+@rule('.*')
+def autovoice(bot, trigger):
+    nick = trigger.nick
+    chan = trigger.sender
+
+    if hascap(bot, chan, '@', 'v'):
+        bot.write(['MODE', chan, '+v', nick])

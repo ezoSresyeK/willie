@@ -63,7 +63,7 @@ def mw_snippet(server, query):
     return snippet['extract']
 
 
-@commands('w', 'wiki', 'wik')
+@commands('wiki', 'wik')
 @example('.w San Francisco')
 def wikipedia(bot, trigger):
 

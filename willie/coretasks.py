@@ -55,9 +55,18 @@ def startup(bot, trigger):
 
     if bot.config.core.nickserv_password is not None:
         bot.msg(
-            'NickServ',
+            'NickServ@services.dal.net',
             'IDENTIFY %s' % bot.config.core.nickserv_password
         )
+
+    if bot.config.core.x_password is not None \
+       and bot.config.core.x_username is not None:
+        bot.msg(
+            'x@channels.undernet.org',
+            'LOGIN %s %s' % (bot.config.core.x_username,
+                             bot.config.core.x_password)
+        )
+        bot.write(['MODE', '+x', bot.nick])
 
     if (bot.config.core.oper_name is not None
             and bot.config.core.oper_password is not None):
@@ -476,7 +485,7 @@ def blocks(bot, trigger):
     nicks = [Nick(nick) for nick in bot.config.core.get_list('nick_blocks')]
     text = trigger.group().split()
 
-    if len(text) == 3 and text[1] == "list":
+    if len(text) >= 3 and text[1] == "list":
         if text[2] == "hostmask":
             if len(masks) > 0 and masks.count("") == 0:
                 for each in masks:
@@ -491,10 +500,21 @@ def blocks(bot, trigger):
                         bot.say("blocked nick: " + each)
             else:
                 bot.reply(STRINGS['nonelisted'] % ('nicks'))
+        elif text[2] == "chan":
+            os = text[3].replace('#', 'ccc')
+            chans = getattr(bot.config.core, os)
+            if not chans:
+                setattr(bot.config, "core." + os, [])
+                chans = getattr(bot.config, "core." + os)
+                bot.config.save()
+            if len(chans) > 0 and chans.count("") == 0:
+                for each in chans:
+                    if len(each) > 0:
+                        bot.say("blocked chan: " + each)
         else:
             bot.reply(STRINGS['invalid_display'])
 
-    elif len(text) == 4 and text[1] == "add":
+    elif len(text) >= 4 and text[1] == "add":
         if text[2] == "nick":
             nicks.append(text[3])
             bot.config.core.nick_blocks = nicks
@@ -502,13 +522,23 @@ def blocks(bot, trigger):
         elif text[2] == "hostmask":
             masks.append(text[3].lower())
             bot.config.core.host_blocks = masks
+        elif text[2] == "chan" and len(text) == 5:
+            os = text[3].replace('#', 'ccc').lower()
+            chans = getattr(bot.config.core, os)
+            if not chans:
+                setattr(bot.config, "core." + os, [])
+                chans = getattr(bot.config, "core." + os)
+                bot.config.save()
+            chans.append(text[4])
+            setattr(bot.config.core, os, chans)
+            bot.config.save()
         else:
             bot.reply(STRINGS['invalid'] % ("adding"))
             return
 
         bot.reply(STRINGS['success_add'] % (text[3]))
 
-    elif len(text) == 4 and text[1] == "del":
+    elif len(text) >= 4 and text[1] == "del":
         if text[2] == "nick":
             if Nick(text[3]) not in nicks:
                 bot.reply(STRINGS['no_nick'] % (text[3]))
@@ -526,6 +556,17 @@ def blocks(bot, trigger):
             bot.config.core.host_blocks = masks
             bot.config.save()
             bot.reply(STRINGS['success_del'] % (text[3]))
+        elif text[2] == "chan" and len(text) == 5:
+            os = text[3].replace('#', 'ccc')
+            chans = getattr(bot.config.core, os)
+            if not chans:
+                setattr(bot.config, "core." + os, [])
+                chans = getattr(bot.config, "core." + os)
+                bot.config.save()
+            chans.remove(text[4])
+            setattr(bot.config.core, os, chans)
+            bot.config.save()
+            bot.reply(STRINGS['success_del'] % (text[4]))
         else:
             bot.reply(STRINGS['invalid'] % ("deleting"))
             return

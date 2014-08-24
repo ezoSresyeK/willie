@@ -771,9 +771,12 @@ class Willie(irc.Bot):
                 )
 
                 for func in funcs:
+                    chan_blocked = self._chan_blocked(trigger.sender, func.__name__)
+                    if chan_blocked:
+                        continue
                     if (not trigger.admin and
                             not func.unblockable and
-                            (nick_blocked or host_blocked)):
+                            (nick_blocked or host_blocked or chan_blocked)):
                         function_name = "%s.%s" % (
                             func.__module__, func.__name__
                         )
@@ -827,6 +830,18 @@ class Willie(irc.Bot):
                 continue
             if (re.match(bad_nick + '$', nick, re.IGNORECASE) or
                     Nick(bad_nick) == nick):
+                return True
+        return False
+
+    def _chan_blocked(self, chan, command):
+        bad_commands = self.config.core.get_list(chan.replace('#', 'ccc').lower())
+        for bad_command in bad_commands:
+            bad_command = bad_command.strip()
+            if not bad_command:
+                continue
+            if re.match(bad_command + '$', command, re.IGNORECASE):
+                return True
+            if bad_command == command:
                 return True
         return False
 
