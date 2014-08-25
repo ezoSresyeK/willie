@@ -10,8 +10,10 @@ Licensed under MIT License
 from __future__ import unicode_literals
 
 import re
-from willie.module import commands, priority, OP, example, rule, event
-from willie.tools import Nick
+import time
+from willie.module import commands, priority, OP, rule, \
+        event, interval
+from willie.tools import Nick, WillieMemory
 from willie.config import ConfigurationError
 from willie import db
 
@@ -19,6 +21,8 @@ gattr = {}
 gattr['name'] = 'gattr'
 gattr['id'] = 'usr'
 gattr['cols'] = ['usr', 'attr']
+bans = list()
+protect = {}
 
 
 def check_attr_db(bot):
@@ -87,23 +91,23 @@ def setusr(bot, table, user, privs):
 
     privs = {}
     privs['attr'] = sescapet(nprivs[1:])
-    getattr(bot.db, sescapet(table)).update(sescapet(user), privs)
+    getattr(bot.db, sescapet(table).lower()).update(sescapet(user), privs)
     return "Set %s on %s" % (user, nprivs)
 
 
 def getusr(bot, table, user):
     if not bot.db.check_table(table, gattr['cols'], gattr['id']):
-        bot.db.add_table(table, gattr['cols'], gattr['id'])
+        bot.db.add_table(sescapet(table).lower(), gattr['cols'], gattr['id'])
         return ""
 
     exit = True
-    for key in getattr(bot.db, table).keys('usr'):
+    for key in getattr(bot.db, sescapet(table).lower()).keys('usr'):
         if key[0] == user:
             exit = False
     if exit:
         return ""
 
-    privs = getattr(bot.db, table).get(user, ['attr'])
+    privs = getattr(bot.db, sescapet(table).lower()).get(user, ['attr'])
     return privs[0]
 
 
@@ -113,16 +117,17 @@ def list_access(bot, trigger, text):
             return
 
         chanattr = str()
-        for key in getattr(bot.db, sescapet(text[3])).keys('usr'):
+        for key in getattr(bot.db, sescapet(text[3]).lower()).keys('usr'):
             if key[0] == '@':
-                chanattr = getattr(bot.db, sescapet(text[3])).get(
-                    key[0], ['attr'], 'usr')
+                chanattr = getattr(bot.db, sescapet(text[3]).lower()).get(
+                    key[0], ['attr'], 'usr')[0]
                 continue
-            privs = getattr(bot.db, sescapet(text[3])).get(key[0],
-                                                           ['attr'],
-                                                           'usr')
+            privs = getattr(bot.db, sescapet(text[3]).lower()).get(key[0],
+                                                                   ['attr'],
+                                                                   'usr')
             bot.say("User %s: %s" % (key[0], privs[0]))
-        bot.say("Channel %s: %s" % (text[3], chanattr[0]))
+        if not (chanattr == ""):
+            bot.say("Channel %s: %s" % (text[3], chanattr[0]))
     elif text[2] == 'global':
         if not hascap(bot, 'gattr', trigger.nick, 'AO'):
             return
@@ -133,7 +138,7 @@ def list_access(bot, trigger, text):
             bot.say("Global %s: %s" % (key[0], privs[0]))
     elif text[2] == 'user':
         privs = getusr(bot, sescapet(trigger.sender),
-                       sescapet(text[3]))
+                       sescapet(text[3]).lower())
         bot.say('%s modes: %s' % (text[3], privs[0]))
         return
 
@@ -168,14 +173,14 @@ def cset(bot, trigger, text):
         if not hascap(bot, chan, trigger.nick, 'AaOo'):
             if not trigger.owner:
                 return
-        if ('A' in privs or 'O' in privs):
+        if ('A' in privs or 'O' in privs or 'B' in privs):
             return
         if 'o' in privs and (not hascap(bot, chan, trigger.nick,
                                         'AOo')):
             if not trigger.owner:
                 return
 
-        setusr(bot, chan, user, privs)
+        setusr(bot, sescapet(chan).lower(), user, privs)
         bot.say('Set user (%s) on chan (%s) mode (%s)' %
                 (user, chan, privs))
 
@@ -198,7 +203,7 @@ def hascap(bot, place, user, req):
 
 
 def sescapet(thing):
-    ret = thing.replace("'", '|')
+    ret = thing.replace("'", "'")
     return ret.replace('#', "ccc")
 
 
@@ -229,12 +234,14 @@ def attr(bot, trigger):
         elif text[1] == 'c':
             cset(bot, trigger, text)
     except:
-        bot.say("See .attr help.")
+        bot.say('see .attr help')
     return
 
 
 def setup(bot):
     if bot.db and not bot.db.preferences.has_columns('topic_mask'):
+        bot.memory['flooddetect'] = WillieMemory()
+        bot.memory['flooded'] = WillieMemory()
         bot.db.preferences.add_collumns(['topic_mask'])
 
 
@@ -267,7 +274,6 @@ def getwhowhere(bot, trigger):
         chan = trigger.sender
         nick = trigger.nick
     elif len(text) == 2:
-        print('here')
         chan = trigger.sender
         nick = text[1]
         lastidx = 2
@@ -280,8 +286,6 @@ def getwhowhere(bot, trigger):
             chan = trigger.sender
             nick = text[1]
             lastidx = 2
-
-    print(chan, nick, lastidx)
 
     return (chan, nick, lastidx)
 
@@ -383,6 +387,8 @@ def banman(bot, trigger, mode):
 
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
+
+    bans.append((nick, chan))
 
     bot.write(['MODE', chan, mode, nick])
 
@@ -502,6 +508,7 @@ def set_mask(bot, trigger):
         bot.db.preferences.update(trigger.sender.lower(), {'topic_mask': trigger.group(2)})
         bot.say("Gotcha, " + trigger.nick)
 
+
 @commands('showmask')
 def show_mask(bot, trigger):
     """Show the topic mask for the current channel."""
@@ -515,14 +522,137 @@ def show_mask(bot, trigger):
        bot.say("%s")
 
 
-@event('JOIN')
-@rule('.*')
 def autovoice(bot, trigger):
     nick = trigger.nick
     chan = trigger.sender
 
     try:
+        # chan is +v (autovoice?)
         if hascap(bot, chan, '@', 'v'):
+            bot.write(['MODE', chan, '+v', nick])
+        # if the nick has voice flag set global or chan
+        # voice user
+        if hascap(bot, chan, nick, 'Vv'):
             bot.write(['MODE', chan, '+v', nick])
     except:
         return
+
+
+def autoop(bot, trigger):
+    nick = trigger.nick
+    chan = trigger.sender
+
+    try:
+        if hascap(bot, chan, nick, 'ao'):
+            if hascap(bot, chan, nick, 'v'):
+                bot.write(['MODE', chan, '+o', nick])
+    except:
+        return
+
+
+def autoban(bot, trigger):
+    nick = trigger.nick
+    chan = trigger.sender
+
+    try:
+        if hascap(bot, chan, nick, 'Bb'):
+            bot.write(['MODE', chan,
+                       '+b', configureHostMask(nick)])
+            bans.append((configureHostMask(nick), chan))
+            bot.write(['KICK', chan, nick,
+                       ':(' + trigger.nick + ') In banlist'])
+    except:
+        return
+
+
+@interval(60 * 1)
+def clearmybans(bot):
+    try:
+        for b in bans:
+            bot.write(['MODE', b[1], '-b', b[0]])
+        bans[:] = []
+    except:
+        bans[:] = []
+
+    return
+
+
+@event('JOIN')
+@rule('.*')
+@priority('high')
+def joinperform(bot, trigger):
+    autovoice(bot, trigger)
+    autoop(bot, trigger)
+    autoban(bot, trigger)
+
+
+@rule('.*')
+@priority('high')
+def flooddetect(bot, trigger):
+    now = int(time.time())
+
+    #function setup, testing capabilities and such
+    #also collecting values such as count, interval, repetition
+    #shimmed
+    count = 5
+    interval = 1
+    repetition = 4
+
+    #prepare storage
+    if 'flooddetect' not in bot.memory:
+        bot.memory['flooddetect'] = WillieMemory()
+    if 'flooded' not in bot.memory:
+        bot.memory['flooded'] = WillieMemory()
+    if trigger.sender not in bot.memory['flooddetect']:
+        bot.memory['flooddetect'][trigger.sender] = WillieMemory()
+    if Nick(trigger.nick) not in \
+       bot.memory['flooddetect'][trigger.sender]:
+        bot.memory['flooddetect'][trigger.sender][Nick(trigger.nick)] = list()
+
+    #store
+    templist = bot.memory['flooddetect'][trigger.sender][Nick(trigger.nick)]
+    line = trigger.group()
+    templist.append((now, line))
+
+    #prune
+    if len(templist) > count and len(templist) > repetition:
+        toprune = repetition
+        if repetition < count:
+            toprune = count
+        toprune += 1
+
+        templist[:] = templist[(len(templist) - toprune):]
+
+    # remove flooders
+    crep = 1
+    ccount = 1
+    rem = False
+    for t in reversed(templist):
+        if crep >= repetition:
+            if Nick(trigger.nick) not in bot.memory['flooded']:
+                bot.memory['flooded'][Nick(trigger.nick)] = 1
+            else:
+                bot.memory['flooded'][Nick(trigger.nick)] += 1
+            rem = True
+            templist[:] = []
+            break
+
+        onow = t[0]
+        oline = t[1]
+
+        if oline == line and ccount > 1:
+            crep += 1
+
+        if (now - onow) <= interval and ccount >= count:
+            if Nick(trigger.nick) not in bot.memory['flooded']:
+                bot.memory['flooded'][Nick(trigger.nick)] = 1
+            else:
+                bot.memory['flooded'][Nick(trigger.nick)] += 1
+            rem = True
+            templist[:] = []
+            break
+
+        ccount += 1
+
+    if rem:
+        print("we should ban the sucker")
