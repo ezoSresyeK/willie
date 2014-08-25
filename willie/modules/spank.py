@@ -30,17 +30,16 @@ def spank(bot, trigger):
 
 
 def spank_safe(word):
-    spank_safe_chans = ['#TheFoxesDen']
-    return any(word in s for s in spank_safe_chans)
+    return False
 
 def spank_get_verb(spank_safe, text):
     if spank_safe:
         return [
             'spanks ' + text[1] + ' till their tongue falls out of their head',
             'bends ' + text[1] + ' over her leg and beats them violently. ' + text[1] + ' walks away barely able to sit welps branding their bum',
-            'spanks ' + text[1]  + ' so hard their teeth fall out in shock',
+            'spanks ' + text[1] + ' so hard their teeth fall out in shock',
             'bends ' + text[1] + ' over her leg and swiftly removes their pants giving them a few firm licks to the bum leaving behind a red hand print',
-            'grabs a paddle and spanks ' + text[1] + ' all over' ]
+            'grabs a paddle and spanks ' + text[1] + ' all over']
     else:
         return [
             'spanks ' + text[1] + ' till their tongue falls out of their head',
@@ -48,4 +47,4 @@ def spank_get_verb(spank_safe, text):
             'bends ' + text[1] + ' over her leg and beats them violently. ' + text[1] + ' walks away barely able to sit welps branding their bum',
             'spanks ' + text[1] + ' so hard their teeth fall out in shock',
             'bends ' + text[1] + ' over her leg and swiftly removes their pants giving them a few firm licks to the bum leaving behind a red hand print',
-            'grabs a paddle and spanks ' + text[1] + ' all over' ]
+            'grabs a paddle and spanks ' + text[1] + ' all over']

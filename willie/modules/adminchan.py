@@ -242,7 +242,7 @@ def setup(bot):
     if bot.db and not bot.db.preferences.has_columns('topic_mask'):
         bot.memory['flooddetect'] = WillieMemory()
         bot.memory['flooded'] = WillieMemory()
-        bot.db.preferences.add_collumns(['topic_mask'])
+        bot.db.preferences.add_columns(['topic_mask'])
 
 
 def hasaccess(bot, trigger, chan, nick, req, emulate_protected):

@@ -11,8 +11,6 @@ greeting = ['hello', 'Hallo', 'Hi', 'Welcome'] #, 'bug off', 'screw this I\'m le
 def hello_join(jenney, input):
     if input.nick == jenney.config.nick:
         return
-    if input.sender == "#starbucks":
-        jenney.write(['MODE', '#starbucks', "+v", input.nick])
     random_greeting = random.choice(greeting)
     punctuation = random.choice(('!', ' '))
     time.sleep(random.randint(1, 4))
