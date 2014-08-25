@@ -21,7 +21,7 @@ from willie.config import ConfigurationError
 
 socket.setdefaulttimeout(10)
 
-INTERVAL = 60 * 5  # seconds between checking for new updates
+INTERVAL = 60 * 30  # seconds between checking for new updates
 
 
 def setup(bot):

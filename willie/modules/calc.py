@@ -49,6 +49,7 @@ def c(bot, trigger):
 @example('.py len([1,2,3])', '3')
 def py(bot, trigger):
     """Evaluate a Python expression."""
+    if not trigger.owner: return
     if not trigger.group(2):
         return bot.say("Need an expression to evaluate")
 
