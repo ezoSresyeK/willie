@@ -70,7 +70,7 @@ def display_help(bot, trigger):
 
 
 def setusr(bot, table, user, privs):
-    oprivs = getusr(bot, sescapet(table), sescapet(user))
+    oprivs = getusr(bot, table, user)
     nprivs = str()
     rprivs = str()
 
@@ -96,18 +96,18 @@ def setusr(bot, table, user, privs):
 
 
 def getusr(bot, table, user):
-    if not bot.db.check_table(table, gattr['cols'], gattr['id']):
+    if not bot.db.check_table(sescapet(table).lower(), gattr['cols'], gattr['id']):
         bot.db.add_table(sescapet(table).lower(), gattr['cols'], gattr['id'])
         return ""
 
     exit = True
     for key in getattr(bot.db, sescapet(table).lower()).keys('usr'):
-        if key[0] == user:
+        if key[0] == sescapet(user):
             exit = False
     if exit:
         return ""
 
-    privs = getattr(bot.db, sescapet(table).lower()).get(user, ['attr'])
+    privs = getattr(bot.db, sescapet(table).lower()).get(sescapet(user), ['attr'])
     return privs[0]
 
 
@@ -137,8 +137,8 @@ def list_access(bot, trigger, text):
                                                  'usr')
             bot.say("Global %s: %s" % (key[0], privs[0]))
     elif text[2] == 'user':
-        privs = getusr(bot, sescapet(trigger.sender),
-                       sescapet(text[3]).lower())
+        privs = getusr(bot, sescapet(trigger.sender).lower(),
+                       sescapet(text[3]))
         bot.say('%s modes: %s' % (text[3], privs[0]))
         return
 
@@ -180,7 +180,7 @@ def cset(bot, trigger, text):
             if not trigger.owner:
                 return
 
-        setusr(bot, sescapet(chan).lower(), user, privs)
+        setusr(bot, chan, user, privs)
         bot.say('Set user (%s) on chan (%s) mode (%s)' %
                 (user, chan, privs))
 
@@ -192,7 +192,7 @@ def hascap(bot, place, user, req):
                               gattr['id']):
         bot.db.add_table(sescapet(place).lower(), gattr['cols'], gattr['id'])
     privs = str()
-    privs += getusr(bot, sescapet(place), sescapet(user))
+    privs += getusr(bot, sescapet(place).lower(), sescapet(user))
     privs += getusr(bot, 'gattr', sescapet(user))
     ret = False
     for c in req:
@@ -203,7 +203,7 @@ def hascap(bot, place, user, req):
 
 
 def sescapet(thing):
-    ret = thing.replace("'", "'")
+    ret = thing.replace("'", "ttt")
     return ret.replace('#', "ccc")
 
 
@@ -246,7 +246,6 @@ def setup(bot):
 
 
 def hasaccess(bot, trigger, chan, nick, req, emulate_protected):
-    req = "AaOo"
     hasax = hascap(bot, chan, nick, req)
     sender_hasax = hascap(bot, chan, trigger.nick, req)
     protected = hascap(bot, chan, '@', 'p')
@@ -299,8 +298,9 @@ def moduser(bot, trigger, emulate_protected, mode, req):
                      emulate_protected):
         return
 
-    bot.write(['MODE', chan, mode, nick])
-    bot.say('set mode %s on %s in %s (%s)' %
+    if bot.privileges[chan][bot.nick] >= OP:
+        bot.write(['MODE', chan, mode, nick])
+        bot.msg(chan, 'set mode %s on %s in %s (%s)' %
             (mode, nick, chan, trigger.nick))
 
 
@@ -454,8 +454,9 @@ def invite(bot, trigger):
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
 
-    bot.write(['INVITE', nick, chan])
-    bot.say("Inviting %s courtesy of %s to %s" %
+    if bot.privileges[chan][bot.nick] >= OP:
+        bot.write(['INVITE', nick, chan])
+        bot.msg(chan, "Inviting %s courtesy of %s to %s" %
             (nick, trigger.nick, chan))
 
 
@@ -591,12 +592,32 @@ def joinperform(bot, trigger):
 def flooddetect(bot, trigger):
     now = int(time.time())
 
+    # don't operate on protected ppl or non-protected chans
+    if hascap(bot, trigger.sender, trigger.nick, 'p'):
+        return
+    if not hascap(bot, trigger.sender, '@', 'p'):
+        return
+
     #function setup, testing capabilities and such
     #also collecting values such as count, interval, repetition
     #shimmed
-    count = 5
-    interval = 1
-    repetition = 4
+    count = 7
+    timer = 2
+    repetition = 5
+
+    props = getusr(bot, trigger.sender, "@@")
+
+    if props:
+        p = props.split(',')
+        if len(p) == 1:
+            count = int(p[0])
+        elif len(p) == 2:
+            count = int([0])
+            timer = int(p[1])
+        elif len(p) >= 3:
+            count = int(p[0])
+            timer = int(p[1])
+            repetition = int(p[2])
 
     #prepare storage
     if 'flooddetect' not in bot.memory:
@@ -627,6 +648,7 @@ def flooddetect(bot, trigger):
     crep = 1
     ccount = 1
     rem = False
+    reason = ""
     for t in reversed(templist):
         if crep >= repetition:
             if Nick(trigger.nick) not in bot.memory['flooded']:
@@ -635,6 +657,7 @@ def flooddetect(bot, trigger):
                 bot.memory['flooded'][Nick(trigger.nick)] += 1
             rem = True
             templist[:] = []
+            reason = "Flood detected: %s repetitions" % (repetition)
             break
 
         onow = t[0]
@@ -643,16 +666,27 @@ def flooddetect(bot, trigger):
         if oline == line and ccount > 1:
             crep += 1
 
-        if (now - onow) <= interval and ccount >= count:
+        if (now - onow) <= timer and ccount >= count:
             if Nick(trigger.nick) not in bot.memory['flooded']:
                 bot.memory['flooded'][Nick(trigger.nick)] = 1
             else:
                 bot.memory['flooded'][Nick(trigger.nick)] += 1
             rem = True
             templist[:] = []
+            reason = "Flood detected: %s lines in %s seconds" % (count, timer)
             break
 
         ccount += 1
 
     if rem:
-        print("we should ban the sucker")
+        bot.write(['KICK', trigger.sender, trigger.nick,
+                   ': %s - %s' % (trigger.nick, reason)])
+
+        if bot.memory['flooded'][trigger.nick] >= 3:
+            bot.write(['MODE', trigger.sender,
+                       '+b', configureHostMask(trigger.nick)])
+            bans.append((configureHostMask(trigger.nick),
+                         trigger.sender))
+            setusr(bot, trigger.sender, trigger.nick, '+b')
+            bot.memory['flooded'][trigger.nick] = 0
+
