@@ -249,7 +249,11 @@ def hasaccess(bot, trigger, chan, nick, req, emulate_protected):
     hasax = hascap(bot, chan, nick, req)
     sender_hasax = hascap(bot, chan, trigger.nick, req)
     protected = hascap(bot, chan, '@', 'p')
-    isoponchan = bot.privileges[chan][trigger.nick] >= OP
+    isoponchan = bool()
+    if trigger.nick in bot.privileges[chan]:
+        isoponchan = bot.privileges[chan][trigger.nick] >= OP
+    else:
+        isoponchan = False
 
     if emulate_protected:
         protected = True
