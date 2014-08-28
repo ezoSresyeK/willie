@@ -151,7 +151,7 @@ def act(bot, trigger):
             item = 'bannana'
 
 
-    cstr = cstr.replace('$nick', nick).replace('$sender', trigger.nick).replace('$item', item)
+    cstr = cstr.replace('$nick', nick).replace('$sender', trigger.nick).replace('$item', item).replace('_', ' ')
 
     bot.write(['PRIVMSG', trigger.sender, ' :\x01ACTION', cstr, '\x01'])
 
