@@ -203,7 +203,7 @@ def hascap(bot, place, user, req):
 
 
 def sescapet(thing):
-    ret = ting.replace("^", "uuu")
+    ret = thing.replace("^", "uuu")
     ret = thing.replace("'", "ttt")
     ret = ret.replace('.', 'ddd')
     return ret.replace('#', "ccc")
