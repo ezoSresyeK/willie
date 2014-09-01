@@ -203,6 +203,7 @@ def hascap(bot, place, user, req):
 
 
 def sescapet(thing):
+    ret = ting.replace("^", "uuu")
     ret = thing.replace("'", "ttt")
     ret = ret.replace('.', 'ddd')
     return ret.replace('#', "ccc")
@@ -612,7 +613,7 @@ def flooddetect(bot, trigger):
 
     props = getusr(bot, trigger.sender, "@@")
 
-    if props:
+    if props and not props ==  '':
         p = props.split(',')
         if len(p) == 1:
             count = int(p[0])
