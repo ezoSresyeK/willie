@@ -21,9 +21,12 @@ def horroscope(bot, trigger):
 
     result = unicode()
     text = trigger.group().split()
-    if not (text[0][0] == '.' or text[0][0] == '!'):
+    try:
+        if not (text[0][0] == '.' or text[0][0] == '!'):
+            return
+        word = text[0][1:]
+    except:
         return
-    word = text[0][1:]
 
     if len(hs.keys()) == 0:
         update_hs(bot)
