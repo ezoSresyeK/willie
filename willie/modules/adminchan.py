@@ -479,7 +479,7 @@ def default_mask(trigger):
     return '{} {} {} {}'.format(welcome, chan, topic_, arg)
 
 
-@commands('topic', 't')
+@commands('topic', 'top')
 def set_topic(bot, trigger):
     """
     Give ops the ability to change the topic.
@@ -488,6 +488,7 @@ def set_topic(bot, trigger):
 
     """
 
+    purple, green, bold = '\x0306', '\x0310', '\x02'
     if bot.privileges[trigger.sender][trigger.nick] < OP:
         return
     text = trigger.group(2)
@@ -502,6 +503,8 @@ def set_topic(bot, trigger):
         mask = mask or default_mask(trigger)
         mask = mask.replace('%s', '{}')
         narg = len(re.findall('{}', mask))
+
+    print(mask)
 
     top = trigger.group(2)
     args = []
