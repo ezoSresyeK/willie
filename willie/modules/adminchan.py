@@ -500,9 +500,9 @@ def set_topic(bot, trigger):
     mask = None
     if bot.db and channel in bot.db.preferences:
         mask = bot.db.preferences.get(channel, 'topic_mask')
-        mask = mask or default_mask(trigger)
-        mask = mask.replace('%s', '{}')
-        narg = len(re.findall('{}', mask))
+    mask = mask or default_mask(trigger)
+    mask = mask.replace('%s', '{}')
+    narg = len(re.findall('{}', mask))
 
     print(mask)
 
