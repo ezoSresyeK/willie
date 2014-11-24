@@ -504,8 +504,6 @@ def set_topic(bot, trigger):
     mask = mask.replace('%s', '{}')
     narg = len(re.findall('{}', mask))
 
-    print(mask)
-
     top = trigger.group(2)
     args = []
     if top:
