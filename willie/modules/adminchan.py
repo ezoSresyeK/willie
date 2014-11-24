@@ -1,6 +1,6 @@
 # coding=utf8
 """
-adminchannel - Chan Management module
+adminchannel - Chan Management module.
 
 Copyright 2014 - KeyserSoze
 Licensed under MIT License
@@ -12,10 +12,10 @@ from __future__ import unicode_literals
 import re
 import time
 from willie.module import commands, priority, OP, rule, \
-        event, interval
+    event, interval
 from willie.tools import Nick, WillieMemory
 from willie.config import ConfigurationError
-from willie import db
+from willie import formatting
 
 gattr = {}
 gattr['name'] = 'gattr'
@@ -96,8 +96,10 @@ def setusr(bot, table, user, privs):
 
 
 def getusr(bot, table, user):
-    if not bot.db.check_table(sescapet(table).lower(), gattr['cols'], gattr['id']):
-        bot.db.add_table(sescapet(table).lower(), gattr['cols'], gattr['id'])
+    if not bot.db.check_table(sescapet(table).lower(),
+                              gattr['cols'], gattr['id']):
+        bot.db.add_table(sescapet(table).lower(), gattr['cols'],
+                         gattr['id'])
         return ""
 
     exit = True
@@ -107,7 +109,8 @@ def getusr(bot, table, user):
     if exit:
         return ""
 
-    privs = getattr(bot.db, sescapet(table).lower()).get(sescapet(user), ['attr'])
+    privs = getattr(bot.db, sescapet(table).lower()).get(
+        sescapet(user), ['attr'])
     return privs[0]
 
 
@@ -206,6 +209,7 @@ def sescapet(thing):
     ret = thing.replace("^", "uuu")
     ret = ret.replace("'", "ttt")
     ret = ret.replace('.', 'ddd')
+    ret = ret.replace('-', 'sss')
     return ret.replace('#', "ccc")
 
 
@@ -463,14 +467,25 @@ def invite(bot, trigger):
     if bot.privileges[chan][bot.nick] >= OP:
         bot.write(['INVITE', nick, chan])
         bot.msg(chan, "Inviting %s courtesy of %s to %s" %
-            (nick, trigger.nick, chan))
+                (nick, trigger.nick, chan))
 
 
-@commands('topic')
-def topic(bot, trigger):
+def default_mask(trigger):
+    welcome = formatting.color('Welcome to:', formatting.colors.PURPLE)
+    chan = formatting.color(trigger.sender, formatting.colors.TEAL)
+    topic_ = formatting.bold('Topic:')
+    topic_ = formatting.color('| ' + topic_, formatting.colors.PURPLE)
+    arg = formatting.color('{}', formatting.colors.GREEN)
+    return '{} {} {} {}'.format(welcome, chan, topic_, arg)
+
+
+@commands('topic', 't')
+def set_topic(bot, trigger):
     """
-    This gives ops the ability to change the topic.…                                                                                                   2…
-    purple, green, bold = '\x0306', '\x0310', '\x02'
+    Give ops the ability to change the topic.
+
+    Returns None
+
     """
 
     if bot.privileges[trigger.sender][trigger.nick] < OP:
@@ -484,20 +499,20 @@ def topic(bot, trigger):
     mask = None
     if bot.db and channel in bot.db.preferences:
         mask = bot.db.preferences.get(channel, 'topic_mask')
-        narg = len(re.findall('%s', mask))
-    if not mask or mask == '':
-        mask = purple + 'Welcome to: ' + green + channel + purple \
-            + ' | ' + bold + 'Topic: ' + bold + green + '%s'
+        mask = mask or default_mask(trigger)
+        mask = mask.replace('%s', '{}')
+        narg = len(re.findall('{}', mask))
 
-    top = trigger.group(2)
-    text = tuple()
+        top = trigger.group(2)
+        args = []
     if top:
-        text = tuple(unicode.split(top, '~', narg))
+        args = top.split('~', narg)
 
-    if len(text) != narg:
-        message = "Not enough arguments. You gave " + str(len(text)) + ', it requires ' + str(narg) + '.'
+    if len(args) != narg:
+        message = "Not enough arguments. You gave {}, it requires {}.".format(
+            len(args), narg)
         return bot.say(message)
-    topic = mask % text
+    topic = mask.format(*args)
 
     bot.write(('TOPIC', channel + ' :' + topic))
 
