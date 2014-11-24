@@ -107,11 +107,14 @@ def tr(bot, trigger):
 
 @commands('translate', 'tr')
 @example('.tr :en :fr my dog', '"mon chien" (en to fr, translate.google.com)')
-@example('.tr היי', '"Hi" (iw to en, translate.google.com)')
+@example('.tr היי', '"High" (iw to en, translate.google.com)')
 @example('.tr mon chien', '"my dog" (fr to en, translate.google.com)')
 def tr2(bot, trigger):
     """Translates a phrase, with an optional language hint."""
     command = trigger.group(2)
+
+    if not command:
+        return bot.reply('You did not give me anything to translate')
 
     def langcode(p):
         return p.startswith(':') and (2 < len(p) < 10) and p[1:].isalpha()
