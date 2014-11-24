@@ -503,8 +503,8 @@ def set_topic(bot, trigger):
         mask = mask.replace('%s', '{}')
         narg = len(re.findall('{}', mask))
 
-        top = trigger.group(2)
-        args = []
+    top = trigger.group(2)
+    args = []
     if top:
         args = top.split('~', narg)
 
