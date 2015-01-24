@@ -165,7 +165,7 @@ def format_hs(horo):
 
     lines = []
     lines.append(horo['date'])
-    lines.append(splitmsg(horo['read']))
+    lines.extend(splitmsg(horo['read']))
     lines.append(horo['lucky'])
     lines.append(horo['numbers'])
     return lines
