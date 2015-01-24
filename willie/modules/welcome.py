@@ -4,7 +4,9 @@ import random
 import time
 from willie.module import rule, priority, event, interval
 
-greeting = ['hello', 'Hallo', 'Hi', 'Welcome']
+greeting = ['hello', 'Hallo', 'Hi', 'Welcome',
+            'did you jizz in your pants today?',
+            'have you jizzed in your pants recently?']
 check = False
 do_greet = True
 greeted = 0

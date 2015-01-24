@@ -26,13 +26,18 @@ def start(bot, trigger):
     if not trigger.group(2):
         return
 
-    if not trigger.sender.startswith('#') or \
-       (trigger.nick not in bot.ops[trigger.sender] and
-       trigger.nick not in bot.halfplus[trigger.sender]):
-        return
+#    if not trigger.sender.startswith('#') or \
+#       (trigger.nick not in bot.ops[trigger.sender] and
+#       trigger.nick not in bot.halfplus[trigger.sender]):
+#        return
     global bombs
     global sch
     target = trigger.group(2).split(' ')[0]
+    if not trigger.sender.startswith('#'):
+        return
+    if target in bot.ops[trigger.sender] and trigger.sender not in \
+       bot.ops[trigger.sender]:
+        return
     if target in bot.config.other_bots or target == bot.nick:
         return
     if target in bombs:
@@ -42,8 +47,8 @@ def start(bot, trigger):
     bot.say(message)
     color = choice(colors)
     bot.msg(trigger.nick,
-               "Hey, don\'t tell %s, but the %s wire? Yeah, that\'s the one."
-               "But shh! Don\'t say anything!" % (target, color))
+            "Hey, don\'t tell %s, but the %s wire? Yeah, that\'s the one."
+            "But shh! Don\'t say anything!" % (target, color))
     code = sch.enter(fuse, 1, explode, (bot, trigger))
     bombs[target.lower()] = (color, code)
     sch.run()

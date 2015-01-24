@@ -614,10 +614,13 @@ def joinperform(bot, trigger):
 def flooddetect(bot, trigger):
     now = int(time.time())
 
-    # don't operate on protected ppl or non-protected chans
-    if hascap(bot, trigger.sender, trigger.nick, 'p'):
-        return
-    if not hascap(bot, trigger.sender, '@', 'p'):
+    try:
+        # don't operate on protected ppl or non-protected chans
+        if hascap(bot, trigger.sender, trigger.nick, 'p'):
+            return
+        if not hascap(bot, trigger.sender, '@', 'p'):
+            return
+    except:
         return
 
     #function setup, testing capabilities and such
@@ -626,10 +629,14 @@ def flooddetect(bot, trigger):
     count = 7
     timer = 2
     repetition = 5
+    props = None
 
-    props = getusr(bot, trigger.sender, "@@")
+    try:
+        props = getusr(bot, trigger.sender, "@@")
+    except:
+        return
 
-    if props and not props ==  '':
+    if props and not props == '':
         p = props.split(',')
         if len(p) == 1:
             count = int(p[0])

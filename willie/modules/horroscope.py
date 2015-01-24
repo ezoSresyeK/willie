@@ -7,11 +7,47 @@ http://willie.dftba.net
 
 """
 
-from horoscope import Horoscope
+from bs4 import BeautifulSoup
+import requests
+import re
 from willie.module import rule, priority, interval, commands
 from willie.modules import unicode as uc
 
 hs = {}
+
+base_url = "http://horoscope.com/"
+url = "http://my.horoscope.com/astrology/free-daily-horoscope-{}.html"
+
+sign_list = {1: "Aries",
+             2: "Taurus",
+             3: "Gemini",
+             4: "Cancer",
+             5: "Leo",
+             6: "Virgo",
+             7: "Libra",
+             8: "Scorpio",
+             9: "Sagittarius",
+             10: "Capricorn",
+             11: "Aquarius",
+             12: "Pisces"}
+
+
+def horoscoper(sign):
+    """Return horoscope info."""
+    r = requests.get(url.format(sign_list[sign]))
+    soup = BeautifulSoup(r.content)
+
+    # data extraction
+    reading = soup.find_all("div", {"class": "fontdef1"})[0].text
+    date = soup.find_all(id="advert")[1].text
+    lucky_numbers = soup.find_all("div", {"class": "fontultrasma10"})[2].text
+    numbers = re.sub("[^0-9, ]", "", (soup.find_all("b")[12].text))
+
+    return {
+        "read": reading,
+        "date": date,
+        "lucky": lucky_numbers,
+        "numbers": numbers}
 
 
 @rule('(.*)')
@@ -37,12 +73,8 @@ def horroscope(bot, trigger):
     if result == '':
         return
 
-    result = uc.encode(result)
-    print(result)
-
-    bot.say('Horroscope for ' + word.lower())
-    splitmsg(bot, result)
-    #bot.say(result)
+    for line in result:
+        bot.say(uc.encode(line))
 
 
 @commands('hs')
@@ -86,53 +118,54 @@ def hs_expanded(bot, trigger):
     if result == '':
         return
 
-    result = uc.encode(result)
-    bot.say('Horroscope for ' + sign.lower())
-    splitmsg(bot, result)
-    #bot.say(result)
+    for line in result:
+        bot.say(uc.encode(line))
 
 
 @interval(60 * 60 * 6)
 def update_hs(bot):
     """ internal function to update horroscopes every 6 hours."""
 
-    hs['aries'] = Horoscope.get_todays_horoscope('Aries')
-    hs['taurus'] = Horoscope.get_todays_horoscope('Taurus')
-    hs['gemini'] = Horoscope.get_todays_horoscope('Gemini')
-    hs['cancer'] = Horoscope.get_todays_horoscope('Cancer')
-    hs['leo'] = Horoscope.get_todays_horoscope('Leo')
-    hs['virgo'] = Horoscope.get_todays_horoscope('Virgo')
-    hs['libra'] = Horoscope.get_todays_horoscope('Libra')
-    hs['scorpio'] = Horoscope.get_todays_horoscope('Scorpio')
-    hs['sagittarius'] = Horoscope.get_todays_horoscope('Sagittarius')
-    hs['capricorn'] = Horoscope.get_todays_horoscope('Capricorn')
-    hs['aquarius'] = Horoscope.get_todays_horoscope('Aquarius')
-    hs['pisces'] = Horoscope.get_todays_horoscope('Pisces')
+    hs['aries'] = format_hs(horoscoper(1))
+    hs['taurus'] = format_hs(horoscoper(2))
+    hs['gemini'] = format_hs(horoscoper(3))
+    hs['cancer'] = format_hs(horoscoper(4))
+    hs['leo'] = format_hs(horoscoper(5))
+    hs['virgo'] = format_hs(horoscoper(6))
+    hs['libra'] = format_hs(horoscoper(7))
+    hs['scorpio'] = format_hs(horoscoper(8))
+    hs['sagittarius'] = format_hs(horoscoper(9))
+    hs['capricorn'] = format_hs(horoscoper(10))
+    hs['aquarius'] = format_hs(horoscoper(11))
+    hs['pisces'] = format_hs(horoscoper(12))
 
 
-def splitmsg(bot, msg):
+def splitmsg(msg):
+    """Split the message. Returns array."""
+
     words = msg.split()
     length = 0
     msg = ''
+    lines = []
     for word in words:
         if len(word) + length > 300:
-            bot.say(msg)
+            lines.append(msg)
             msg = ''
             length = 0
         else:
             msg = msg + ' ' + word
             length = length + len(word)
 
-    bot.say(msg)
+    lines.append(msg)
+    return lines
 
 
-def format_sign(sign):
-    sign_info = hs[sign.lower()]['sunsign']
-    ret = ''
-    ret = 'Sign: ' + sign_info['sanskrit_name'] + ', '
-    ret = ret + 'Meaning: ' + sign_info['meaning_of_name'] + ', '
-    ret = ret + 'Lord: ' + sign_info['lord'] + ', '
-    ret = ret + 'Lucky Color: ' + sign_info['lucky_color'] + ', '
-    ret = ret + 'Lucky Day: ' + sign_info['lucky_day'] + ', '
-    ret = ret + 'Lucky Number: ' + sign_info['lucky_number'] + '.'
-    return ret
+def format_hs(horo):
+    "Format the horoscope."
+
+    lines = []
+    lines.append(horo['date'])
+    lines.append(splitmsg(horo['read']))
+    lines.append(horo['lucky'])
+    lines.append(horo['numbers'])
+    return lines
