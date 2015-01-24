@@ -68,7 +68,7 @@ def horroscope(bot, trigger):
         update_hs(bot)
 
     if word.lower() in hs.keys():
-        result = hs[word.lower()]['horoscope']
+        result = hs[word.lower()]
 
     if result == '':
         return
@@ -111,7 +111,7 @@ def hs_expanded(bot, trigger):
             result = ''
             #result = format_sign(sign)
         elif word == 'view':
-            result = hs[sign.lower()]['horoscope']
+            result = hs[sign.lower()]
         else:
             return
 
