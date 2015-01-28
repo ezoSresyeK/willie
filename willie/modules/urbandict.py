@@ -10,7 +10,7 @@ def get_def(word, num=0):
     url = UD_URL + word
     try:
         resp = json.loads(web.get(url))
-    except UnicodeError:
+    except:
         definition = ('ENGLISH MOTHERFUCKER, DO YOU SPEAK IT?')
         return definition
     nom = num + 1
