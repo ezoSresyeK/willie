@@ -37,8 +37,8 @@ def configure(config):
 
     | [ip] | example | purpose |
     | ---- | ------- | ------- |
-    | GeoIP_db_path | None | Full path for the GeoIP database. If not specified or None, the bot will try to look for the 
-database in /usr/share/GeoIP, and if it's not there it'll try to automatically download the database into its configuration 
+    | GeoIP_db_path | None | Full path for the GeoIP database. If not specified or None, the bot will try to look for the
+database in /usr/share/GeoIP, and if it's not there it'll try to automatically download the database into its configuration
 directory |
     """
     if config.option('Configure a custom location for the GeoIP db?', False):
@@ -190,5 +190,5 @@ def whois_host(bot, trigger):
 @event('401')
 @rule(r'.*')
 def whois_nohost(bot, trigger):
-    bot.msg(channel, "User not found")
+    bot.msg(channel, "Exist? They do not.")
 

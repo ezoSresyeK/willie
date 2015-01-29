@@ -164,7 +164,7 @@ def format_hs(horo):
     "Format the horoscope."
 
     lines = []
-    lines.append(horo['date'])
+#    lines.append(horo['date'])
     lines.extend(splitmsg(horo['read']))
     lines.append(horo['lucky'])
     lines.append(horo['numbers'])
