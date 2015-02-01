@@ -22,6 +22,7 @@ gattr['name'] = 'gattr'
 gattr['id'] = 'usr'
 gattr['cols'] = ['usr', 'attr']
 bans = list()
+tbl = {}
 protect = {}
 
 
@@ -390,20 +391,43 @@ def configureHostMask(mask):
     return ''
 
 
-def banman(bot, trigger, mode):
+def banman(bot, trigger, mode, length=10):
     whowhere = getwhowhere(bot, trigger)
     chan = whowhere[0]
-    nick = configureHostMask(whowhere[1])
+    nick = whowhere[1]
+    ts = 10
+
+    try:
+        if len(trigger.group().split()) == whowhere[2] + 1:
+            ts = int(trigger.group().split()[whowhere[2]])
+    except:
+        print("tried to do something idiotic")
 
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
 
-    bans.append((nick, chan))
+    tbl[nick] = (chan, ts, mode)
+    bot.write(['WHOIS', nick])
+    return
+
+
+@event('311')
+@rule(r'.*')
+def actual_ban(bot, trigger):
+    nick = trigger.args[1]
+    mode = tbl[nick][2]
+    chan = tbl[nick][0]
+    ts = tbl[nick][1]
+    nick = trigger.args[3]
+    nick = '*!*@'+ nick
+
+    if mode == '+b':
+        bans.append((nick, chan, ts))
 
     bot.write(['MODE', chan, mode, nick])
 
 
-@commands('ban', 'b')
+@commands('ban', 'b', 'gag')
 @priority('high')
 def ban(bot, trigger):
     """
@@ -412,7 +436,7 @@ def ban(bot, trigger):
     banman(bot, trigger, '+b')
 
 
-@commands('unban')
+@commands('unban', 'ungag')
 @priority('high')
 def unban(bot, trigger):
     """
@@ -592,12 +616,19 @@ def autoban(bot, trigger):
 def clearmybans(bot):
     try:
         for b in bans:
-            bot.write(['MODE', b[1], '-b', b[0]])
-        bans[:] = []
-    except:
-        bans[:] = []
+            if b[2] == 1:
+                bot.write(['MODE', b[1], '-b', b[0]])
+                bans.remove(b)
+            else:
+                nick = b[0]
+                chan = b[1]
+                ts = b[2] - 1
+                bans.remove(b)
+                bans.append((nick, chan, ts))
 
-    return
+        #bans[:] = []
+    except:
+        return
 
 
 @event('JOIN')

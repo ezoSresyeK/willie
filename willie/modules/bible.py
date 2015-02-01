@@ -28,7 +28,7 @@ def setup_bibles_org(bot):
     for version in resp['response']['versions']:
         bot.memory['bibles_versions'].append(version['id'])
 
-@willie.module.commands('b', 'bible')
+@willie.module.commands('bible')
 @willie.module.rule('.*\[%s\]' % passage_re)
 @willie.module.example('.b John 1:1')
 @willie.module.example('.b John 1:1 ESV')
