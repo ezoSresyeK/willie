@@ -460,13 +460,14 @@ def actual_ban(bot, trigger):
     if caller == 'gag':
         bot.write(['MODE', chan, '-o', nick])
         bot.write(['MODE', chan, '-v', nick])
-        bot.msg(chan, "ATTENTION: %s will be unable to type in %s \
-                for %s minutes." % (nick, chan.strip(), ts))
+        bot.msg(chan,
+                "ATTENTION: %s will be unable to type in %s"
+                "for %s minutes." % (nick, chan, ts))
         bot.msg(chan, reason)
 
-    if caller == 'ungag':
+    if caller == 'gag' and mode == '-b':
         bot.write("ATTENTION: %s can talk again on %s" %
-                  (nick, chan.strip()))
+                  (nick, chan))
 
     bot.write(['MODE', chan, mode, mask])
 
@@ -474,13 +475,9 @@ def actual_ban(bot, trigger):
 @commands('ban', 'b', 'gag')
 @priority('high')
 def ban(bot, trigger):
-    """
-    Bans user, must be op in chan, or have access.
-    """
-    caller = None
-    if trigger.group().split()[0] == '.gag':
-        caller = 'gag'
-    banman(bot, trigger, '+b', caller)
+    """Ban user, must be op in chan, or have access."""
+
+    banman(bot, trigger, '+b')
 
 
 @commands('unban', 'ungag')
