@@ -461,12 +461,12 @@ def actual_ban(bot, trigger):
         bot.write(['MODE', chan, '-o', nick])
         bot.write(['MODE', chan, '-v', nick])
         bot.msg(chan, "ATTENTION: %s will be unable to type in %s \
-                for %s minutes." % (nick, chan, ts))
+                for %s minutes." % (nick, chan.strip(), ts))
         bot.msg(chan, reason)
 
     if caller == 'ungag':
         bot.write("ATTENTION: %s can talk again on %s" %
-                  (nick, chan))
+                  (nick, chan.strip()))
 
     bot.write(['MODE', chan, mode, mask])
 
