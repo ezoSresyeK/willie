@@ -305,15 +305,48 @@ def moduser(bot, trigger, emulate_protected, mode, req):
     whowhere = getwhowhere(bot, trigger)
     chan = whowhere[0]
     nick = whowhere[1]
+    nicks = list()
+    index = 1
+    temp = nick
+    vstr = mode[0]
+    mstr = mode[0]
+
+    tmp = 5
+    while 0 < tmp:
+        tmp = tmp - 1
+        mstr = mstr + mode[1]
 
     if not hasaccess(bot, trigger, chan, nick, req,
                      emulate_protected):
         return
 
+    for n in trigger.group().split()[whowhere[2]:]:
+        if index == 5:
+            index = 0
+#            nicks.append('MODE %s %s %s' %
+#                         (chan, mstr, temp.lstrip().rstrip()))
+            nicks.append(
+                ['MODE', chan, mstr, temp.lstrip().rstrip()])
+            temp = str()
+
+        temp = temp + ' ' + n
+        index = index + 1
+
+    while index > 0:
+         index = index -1
+         vstr = vstr + mode[1]
+
+#    nicks.append('MODE %s %s %s' %
+#                 (chan, vstr, temp.lstrip().rstrip()))
+    nicks.append(['MODE', chan, vstr, temp.lstrip().rstrip()])
+
     if bot.privileges[chan][bot.nick] >= OP:
-        bot.write(['MODE', chan, mode, nick])
-        bot.msg(chan, 'set mode %s on %s in %s (%s)' %
-                (mode, nick, chan, trigger.nick))
+        for nl in nicks:
+            print(nl)
+            bot.write(nl)
+            #bot.write('MODE %s %s :%s' % (chan, mode, nl))
+            bot.msg(chan, 'set mode %s on %s in %s (%s)' %
+                    (mode, nl[3], chan, trigger.nick))
 
 
 @commands('op', 'o')
@@ -634,12 +667,12 @@ def autoop(bot, trigger):
 def autoban(bot, trigger):
     nick = trigger.nick
     chan = trigger.sender
+    tbl[nick] = (chan, 60, '+b', 'autoban', None)
 
     try:
         if hascap(bot, chan, nick, 'Bb'):
-            bot.write(['MODE', chan,
-                       '+b', configureHostMask(nick)])
-            bans.append((configureHostMask(nick), chan))
+            tbl[nick] = (chan, 60, '+b', 'autoban', None)
+            bot.write(['WHOIS', nick])
             bot.write(['KICK', chan, nick,
                        ':(' + trigger.nick + ') In banlist'])
     except:
