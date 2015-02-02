@@ -476,8 +476,10 @@ def actual_ban(bot, trigger):
 @priority('high')
 def ban(bot, trigger):
     """Ban user, must be op in chan, or have access."""
-
-    banman(bot, trigger, '+b')
+    caller = None
+    if trigger.group().split()[0] == '.gag':
+        caller = 'gag'
+    banman(bot, trigger, '+b', caller)
 
 
 @commands('unban', 'ungag')
@@ -486,10 +488,7 @@ def unban(bot, trigger):
     """
     Unbans a user, behaves similar to devoice.
     """
-    caller = None
-    if trigger.group().split()[0] == '.ungag':
-        caller = 'ungag'
-    banman(bot, trigger, '-b', caller)
+    banman(bot, trigger, '-b')
 
 
 @commands('quiet')
