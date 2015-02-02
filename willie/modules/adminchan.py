@@ -397,20 +397,15 @@ def get_ts_reason(bot, trigger, lastidx):
     ts = 10
 
     try:
-        if len(trigger.group().split()) == lastidx + 2:
+        if len(trigger.group().split()) >= lastidx + 1:
+            ts = int(trigger.group().split()[lastidx])
+        if len(trigger.group().split()) >= lastidx + 2:
             ts = int(trigger.group().split()[lastidx])
             reason = "REASON: " + \
-                trigger.group().split()[lastidx + 1]
-    except:
-        bot.reply("Sorry, format is .gag nick time reason")
-        bot.reply("time or reason may be omited.")
-
-    try:
-        if len(trigger.group().split()) == lastidx + 1:
-            ts = int(trigger.group().split()[lastidx])
+                ' '. join(trigger.group().split()[lastidx + 1:])
     except:
         reason = "REASON: " + \
-            trigger.group().split()[lastidx]
+            ' '.join(trigger.group().split()[lastidx:])
 
     return ts, reason
 
@@ -421,16 +416,6 @@ def banman(bot, trigger, mode, caller=None):
     nick = whowhere[1]
     ts = 10
     reason = "REASON: Just cuz."
-
-#    try:
-#        if len(trigger.group().split()) == whowhere[2] + 1:
-#            ts = int(trigger.group().split()[whowhere[2]])
-#        if len(trigger.group().split()) == whowhere[2] + 2:
-#            ts = int(trigger.group().split()[whowhere[2]])
-#            reason = "REASON: " + \
-#                trigger.group().split()[whowhere[2] + 1]
-#    except:
-#        print("tried to do something idiotic")
 
     ts, reason = get_ts_reason(bot, trigger, whowhere[2])
 
@@ -453,8 +438,6 @@ def actual_ban(bot, trigger):
     mask = '*!*@' + mask
     caller = tbl[nick][3]
     reason = tbl[nick][4]
-
-    print(tbl[nick])
 
     if mode == '+b':
         bans.append((mask, chan, ts, caller, nick))
