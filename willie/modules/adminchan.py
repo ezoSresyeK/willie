@@ -454,6 +454,8 @@ def actual_ban(bot, trigger):
     caller = tbl[nick][3]
     reason = tbl[nick][4]
 
+    print(tbl[nick])
+
     if mode == '+b':
         bans.append((mask, chan, ts, caller, nick))
 
@@ -465,9 +467,9 @@ def actual_ban(bot, trigger):
                 "for %s minutes." % (nick, chan, ts))
         bot.msg(chan, reason)
 
-    if caller == 'gag' and mode == '-b':
-        bot.write("ATTENTION: %s can talk again on %s" %
-                  (nick, chan))
+    if caller == 'ungag':
+        bot.msg(chan, "ATTENTION: %s can talk again on %s" %
+            (nick, chan))
 
     bot.write(['MODE', chan, mode, mask])
 
@@ -488,7 +490,10 @@ def unban(bot, trigger):
     """
     Unbans a user, behaves similar to devoice.
     """
-    banman(bot, trigger, '-b')
+    caller = None
+    if trigger.group().split()[0] == '.ungag':
+        caller = 'ungag'
+    banman(bot, trigger, '-b', caller)
 
 
 @commands('quiet')

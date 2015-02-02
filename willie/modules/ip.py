@@ -190,5 +190,6 @@ def whois_host(bot, trigger):
 @event('401')
 @rule(r'.*')
 def whois_nohost(bot, trigger):
-    bot.msg(channel, "Exist? They do not.")
+    pass
+    #bot.msg(channel, "Exist? They do not.")
 
