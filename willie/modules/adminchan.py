@@ -461,7 +461,7 @@ def actual_ban(bot, trigger):
         bot.write(['MODE', chan, '-o', nick])
         bot.write(['MODE', chan, '-v', nick])
         bot.msg(chan,
-                "ATTENTION: %s will be unable to type in %s"
+                "ATTENTION: %s will be unable to type in %s "
                 "for %s minutes." % (nick, chan, ts))
         bot.msg(chan, reason)
 
