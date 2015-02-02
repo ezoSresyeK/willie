@@ -257,6 +257,7 @@ def hasaccess(bot, trigger, chan, nick, req, emulate_protected):
     sender_hasax = hascap(bot, chan, trigger.nick, req)
     protected = hascap(bot, chan, '@', 'p')
     isoponchan = bool()
+    chan = chan.lower()
     if trigger.nick in bot.privileges[chan]:
         isoponchan = bot.privileges[chan][trigger.nick] >= OP
     else:
@@ -312,7 +313,7 @@ def moduser(bot, trigger, emulate_protected, mode, req):
     if bot.privileges[chan][bot.nick] >= OP:
         bot.write(['MODE', chan, mode, nick])
         bot.msg(chan, 'set mode %s on %s in %s (%s)' %
-            (mode, nick, chan, trigger.nick))
+                (mode, nick, chan, trigger.nick))
 
 
 @commands('op', 'o')
@@ -391,22 +392,52 @@ def configureHostMask(mask):
     return ''
 
 
-def banman(bot, trigger, mode, length=10):
+def get_ts_reason(bot, trigger, lastidx):
+    reason = "REASON: Just cuz."
+    ts = 10
+
+    try:
+        if len(trigger.group().split()) == lastidx + 2:
+            ts = int(trigger.group().split()[lastidx])
+            reason = "REASON: " + \
+                trigger.group().split()[lastidx + 1]
+    except:
+        bot.reply("Sorry, format is .gag nick time reason")
+        bot.reply("time or reason may be omited.")
+
+    try:
+        if len(trigger.group().split()) == lastidx + 1:
+            ts = int(trigger.group().split()[lastidx])
+    except:
+        reason = "REASON: " + \
+            trigger.group().split()[lastidx]
+
+    return ts, reason
+
+
+def banman(bot, trigger, mode, caller=None):
     whowhere = getwhowhere(bot, trigger)
     chan = whowhere[0]
     nick = whowhere[1]
     ts = 10
+    reason = "REASON: Just cuz."
 
-    try:
-        if len(trigger.group().split()) == whowhere[2] + 1:
-            ts = int(trigger.group().split()[whowhere[2]])
-    except:
-        print("tried to do something idiotic")
+#    try:
+#        if len(trigger.group().split()) == whowhere[2] + 1:
+#            ts = int(trigger.group().split()[whowhere[2]])
+#        if len(trigger.group().split()) == whowhere[2] + 2:
+#            ts = int(trigger.group().split()[whowhere[2]])
+#            reason = "REASON: " + \
+#                trigger.group().split()[whowhere[2] + 1]
+#    except:
+#        print("tried to do something idiotic")
+
+    ts, reason = get_ts_reason(bot, trigger, whowhere[2])
 
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
 
-    tbl[nick] = (chan, ts, mode)
+    tbl[nick] = (chan, ts, mode, caller, reason)
     bot.write(['WHOIS', nick])
     return
 
@@ -418,13 +449,26 @@ def actual_ban(bot, trigger):
     mode = tbl[nick][2]
     chan = tbl[nick][0]
     ts = tbl[nick][1]
-    nick = trigger.args[3]
-    nick = '*!*@'+ nick
+    mask = trigger.args[3]
+    mask = '*!*@' + mask
+    caller = tbl[nick][3]
+    reason = tbl[nick][4]
 
     if mode == '+b':
-        bans.append((nick, chan, ts))
+        bans.append((mask, chan, ts, caller, nick))
 
-    bot.write(['MODE', chan, mode, nick])
+    if caller == 'gag':
+        bot.write(['MODE', chan, '-o', nick])
+        bot.write(['MODE', chan, '-v', nick])
+        bot.msg(chan, "ATTENTION: %s will be unable to type in %s \
+                for %s minutes." % (nick, chan, ts))
+        bot.msg(chan, reason)
+
+    if caller == 'ungag':
+        bot.write("ATTENTION: %s can talk again on %s" %
+                  (nick, chan))
+
+    bot.write(['MODE', chan, mode, mask])
 
 
 @commands('ban', 'b', 'gag')
@@ -433,7 +477,10 @@ def ban(bot, trigger):
     """
     Bans user, must be op in chan, or have access.
     """
-    banman(bot, trigger, '+b')
+    caller = None
+    if trigger.group().split()[0] == '.gag':
+        caller = 'gag'
+    banman(bot, trigger, '+b', caller)
 
 
 @commands('unban', 'ungag')
@@ -442,7 +489,10 @@ def unban(bot, trigger):
     """
     Unbans a user, behaves similar to devoice.
     """
-    banman(bot, trigger, '-b')
+    caller = None
+    if trigger.group().split()[0] == '.ungag':
+        caller = 'ungag'
+    banman(bot, trigger, '-b', caller)
 
 
 @commands('quiet')
@@ -617,6 +667,9 @@ def clearmybans(bot):
     try:
         for b in bans:
             if b[2] == 1:
+                if b[3] == 'gag':
+                    bot.msg(b[1], "ATTENTION: %s can talk again on \
+                            %s" % (b[4], b[1]))
                 bot.write(['MODE', b[1], '-b', b[0]])
                 bans.remove(b)
             else:
