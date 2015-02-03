@@ -686,8 +686,9 @@ def clearmybans(bot):
             print(b)
             if b[2] == 1:
                 if b[3] == 'gag':
-                    bot.msg(b[1], "ATTENTION: %s can talk again on \
-                            %s" % (b[4], b[1]))
+                    bot.msg(b[1],
+                            "ATTENTION: %s can talk again on %s"
+                            % (b[4], b[1]))
                 bot.write(['MODE', b[1], '-b', b[0]])
                 bans.remove(b)
             else:
