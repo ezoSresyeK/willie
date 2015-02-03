@@ -683,6 +683,7 @@ def autoban(bot, trigger):
 def clearmybans(bot):
     try:
         for b in bans:
+            print(b)
             if b[2] == 1:
                 if b[3] == 'gag':
                     bot.msg(b[1], "ATTENTION: %s can talk again on \
@@ -693,11 +694,14 @@ def clearmybans(bot):
                 nick = b[0]
                 chan = b[1]
                 ts = b[2] - 1
+                caller = b[3]
+                reason = b[4]
                 bans.remove(b)
-                bans.append((nick, chan, ts))
+                bans.append((nick, chan, ts, caller, reason))
 
         #bans[:] = []
     except:
+        print("got here exception @ clearmybans")
         return
 
 
