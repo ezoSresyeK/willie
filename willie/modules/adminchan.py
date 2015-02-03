@@ -15,7 +15,8 @@ from willie.module import commands, priority, OP, rule, \
     event, interval
 from willie.tools import Nick, WillieMemory
 from willie.config import ConfigurationError
-from willie import formatting
+from willie.modules.whois import whois
+
 
 gattr = {}
 gattr['name'] = 'gattr'
@@ -323,8 +324,6 @@ def moduser(bot, trigger, emulate_protected, mode, req):
     for n in trigger.group().split()[whowhere[2]:]:
         if index == 5:
             index = 0
-#            nicks.append('MODE %s %s %s' %
-#                         (chan, mstr, temp.lstrip().rstrip()))
             nicks.append(
                 ['MODE', chan, mstr, temp.lstrip().rstrip()])
             temp = str()
@@ -336,13 +335,10 @@ def moduser(bot, trigger, emulate_protected, mode, req):
          index = index -1
          vstr = vstr + mode[1]
 
-#    nicks.append('MODE %s %s %s' %
-#                 (chan, vstr, temp.lstrip().rstrip()))
     nicks.append(['MODE', chan, vstr, temp.lstrip().rstrip()])
 
     if bot.privileges[chan][bot.nick] >= OP:
         for nl in nicks:
-            print(nl)
             bot.write(nl)
             #bot.write('MODE %s %s :%s' % (chan, mode, nl))
             bot.msg(chan, 'set mode %s on %s in %s (%s)' %
@@ -403,27 +399,6 @@ def kick(bot, trigger):
     bot.write(['KICK', chan, nick,
                ':(' + trigger.nick + ') ' + reason])
 
-def configureHostMask(mask):
-    if mask == '*!*@*':
-        return mask
-    if re.match('^[^.@!/]+$', mask) is not None:
-        return '%s!*@*' % mask
-    if re.match('^[^@!]+$', mask) is not None:
-        return '*!*@%s' % mask
-
-    m = re.match('^([^!@]+)@$', mask)
-    if m is not None:
-        return '*!%s@*' % m.group(1)
-
-    m = re.match('^([^!@]+)@([^@!]+)$', mask)
-    if m is not None:
-        return '*!%s@%s' % (m.group(1), m.group(2))
-
-    m = re.match('^([^!@]+)!(^[!@]+)@?$', mask)
-    if m is not None:
-        return '%s!%s@*' % (m.group(1), m.group(2))
-    return ''
-
 
 def get_ts_reason(bot, trigger, lastidx):
     reason = "REASON: Just cuz."
@@ -455,19 +430,20 @@ def banman(bot, trigger, mode, caller=None):
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
 
+    if ts > 60:
+        ts = 60
+
     tbl[nick] = (chan, ts, mode, caller, reason)
-    bot.write(['WHOIS', nick])
+    actual_ban(bot, nick)
     return
 
 
-@event('311')
-@rule(r'.*')
-def actual_ban(bot, trigger):
-    nick = trigger.args[1]
+def actual_ban(bot, nick):
+    temp = whois(bot, nick)
     mode = tbl[nick][2]
     chan = tbl[nick][0]
     ts = tbl[nick][1]
-    mask = trigger.args[3]
+    mask = temp.host
     mask = '*!*@' + mask
     caller = tbl[nick][3]
     reason = tbl[nick][4]
@@ -485,7 +461,7 @@ def actual_ban(bot, trigger):
 
     if caller == 'ungag':
         bot.msg(chan, "ATTENTION: %s can talk again on %s" %
-            (nick, chan))
+                (nick, chan))
 
     bot.write(['MODE', chan, mode, mask])
 
@@ -683,7 +659,6 @@ def autoban(bot, trigger):
 def clearmybans(bot):
     try:
         for b in bans:
-            print(b)
             if b[2] == 1:
                 if b[3] == 'gag':
                     bot.msg(b[1],
@@ -702,7 +677,6 @@ def clearmybans(bot):
 
         #bans[:] = []
     except:
-        print("got here exception @ clearmybans")
         return
 
 

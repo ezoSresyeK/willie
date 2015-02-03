@@ -24,6 +24,7 @@ except ImportError:
 
 from willie.module import commands, example, event, rule
 from willie.config import Config
+from willie.modules.whois import whois
 
 channel = ""
 
@@ -102,8 +103,10 @@ def ip(bot, trigger):
     if not trigger.group(2):
         query = trigger.host
     if trigger.group(2).lower().find(".") == -1:
-        bot.write(['WHOIS', trigger.group(2)])
-        return
+        try:
+            query = whois(bot, trigger.group(2)).host
+        except:
+            bot.reply("Could not find their hostmask.")
     else:
         query = trigger.group(2)
     ip_lookup(bot, query)
@@ -175,21 +178,3 @@ def ip_lookup(bot, query):
         response += " | Time Zone: %s" % tz
 
     bot.msg(channel, response)
-
-
-@event('311')
-@rule(r'.*')
-def whois_host(bot, trigger):
-    host = trigger.args[3]
-    if trigger.args[3].find(".") == -1:
-        bot.msg(channel, "Hostname/IP does not exist")
-        sys.exit(0)
-    ip_lookup(bot, host)
-
-
-@event('401')
-@rule(r'.*')
-def whois_nohost(bot, trigger):
-    pass
-    #bot.msg(channel, "Exist? They do not.")
-
