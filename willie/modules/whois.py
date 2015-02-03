@@ -128,8 +128,8 @@ def whois_found_reply(bot, trigger):
     bot.memory["whois"][nick] = Whois(trigger.args)
 
 
-@event('401')
-@rule(r'.*')
+#@event('401')
+#@rule(r'.*')
 def whois_not_found_reply(bot, trigger):
     """
     Listens for unsuccessful WHOIS responses and saves

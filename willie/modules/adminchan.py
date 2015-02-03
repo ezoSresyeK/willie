@@ -15,7 +15,7 @@ from willie.module import commands, priority, OP, rule, \
     event, interval
 from willie.tools import Nick, WillieMemory
 from willie.config import ConfigurationError
-from willie.modules.whois import whois
+from willie.modules.whois import whois, send_whois, get_whois
 
 
 gattr = {}
