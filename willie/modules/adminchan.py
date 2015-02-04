@@ -15,7 +15,7 @@ from willie.module import commands, priority, OP, rule, \
     event, interval
 from willie.tools import Nick, WillieMemory
 from willie.config import ConfigurationError
-from willie.modules.whois import whois, send_whois, get_whois
+from willie.modules.whois import whois
 
 
 gattr = {}
@@ -23,7 +23,6 @@ gattr['name'] = 'gattr'
 gattr['id'] = 'usr'
 gattr['cols'] = ['usr', 'attr']
 bans = list()
-tbl = {}
 protect = {}
 
 
@@ -433,23 +432,45 @@ def banman(bot, trigger, mode, caller=None):
     if ts > 60:
         ts = 60
 
-    tbl[nick] = (chan, ts, mode, caller, reason)
-    actual_ban(bot, nick)
+    actual_ban(bot, nick, chan, ts, mode, caller, reason)
     return
 
 
-def actual_ban(bot, nick):
+def add_to_ban_list(bot, nick, chan, ts, mode, caller, reason, mask):
+    if chan not in bot.memory['bans']:
+        bot.memory['bans'][chan] = {}
+    if nick not in bot.memory['bans'][chan]:
+        bot.memory['bans'][chan][nick] = tuple()
+
+    bot.memory['bans'][chan][nick] = (ts, mode, caller, reason, mask)
+
+
+def del_from_ban_list(bot, nick, chan):
+    if chan in bot.memory['bans'] \
+       and nick in bot.memory['bans'][chan]:
+        del bot.memory['bans'][chan][nick]
+
+
+def actual_ban(bot, nick, chan, ts, mode, caller, reason):
+    if 'bans' not in bot.memory:
+        bot.memory['bans'] = {}
+
     temp = whois(bot, nick)
-    mode = tbl[nick][2]
-    chan = tbl[nick][0]
-    ts = tbl[nick][1]
+
+    if temp is None:
+        bot.msg(chan, "They simply don't exist.")
+        return
+
     mask = temp.host
     mask = '*!*@' + mask
-    caller = tbl[nick][3]
-    reason = tbl[nick][4]
 
     if mode == '+b':
+        add_to_ban_list(bot, nick, chan, ts, mode, caller, reason,
+                        mask)
         bans.append((mask, chan, ts, caller, nick))
+
+    if mode == '-b':
+        del_from_ban_list(bot, nick, chan)
 
     if caller == 'gag':
         bot.write(['MODE', chan, '-o', nick])
@@ -643,12 +664,12 @@ def autoop(bot, trigger):
 def autoban(bot, trigger):
     nick = trigger.nick
     chan = trigger.sender
-    tbl[nick] = (chan, 60, '+b', 'autoban', None)
+    #tbl[nick] = (chan, 60, '+b', 'autoban', None)
+    #def actual_ban(bot, nick, chan, ts, mode, caller, reason):
 
     try:
         if hascap(bot, chan, nick, 'Bb'):
-            tbl[nick] = (chan, 60, '+b', 'autoban', None)
-            bot.write(['WHOIS', nick])
+            actual_ban(bot, nick, chan, 60, '+b', 'autoban', None)
             bot.write(['KICK', chan, nick,
                        ':(' + trigger.nick + ') In banlist'])
     except:
@@ -658,24 +679,39 @@ def autoban(bot, trigger):
 @interval(60 * 1)
 def clearmybans(bot):
     try:
-        for b in bans:
-            if b[2] == 1:
-                if b[3] == 'gag':
-                    bot.msg(b[1],
-                            "ATTENTION: %s can talk again on %s"
-                            % (b[4], b[1]))
-                bot.write(['MODE', b[1], '-b', b[0]])
-                bans.remove(b)
-            else:
-                nick = b[0]
-                chan = b[1]
-                ts = b[2] - 1
-                caller = b[3]
-                reason = b[4]
-                bans.remove(b)
-                bans.append((nick, chan, ts, caller, reason))
+#        for b in bans:
+#            if b[2] == 1:
+#                if b[3] == 'gag':
+#                    bot.msg(b[1],
+#                            "ATTENTION: %s can talk again on %s"
+#                            % (b[4], b[1]))
+#                bot.write(['MODE', b[1], '-b', b[0]])
+#                bans.remove(b)
+#            else:
+#                nick = b[0]
+#                chan = b[1]
+#                ts = b[2] - 1
+#                caller = b[3]
+#                reason = b[4]
+#                bans.remove(b)
+#                bans.append((nick, chan, ts, caller, reason))
 
-        #bans[:] = []
+        bans = bot.memory['bans']
+
+        for chan in bans:
+            for nick in bans[chan]:
+                temp = bans[chan][nick]
+                if temp[0] == 1:
+                    if temp[2] == 'gag':
+                        bot.msg(chan,
+                                "ATTENTION: %s can talk again on %s"
+                                % (nick, chan))
+                    bot.write(['MODE', chan, '-b', temp[4]])
+                    del_from_ban_list(bot, nick, chan)
+                else:
+                    bans[chan][nick] = (temp[0] - 1, temp[1],
+                                        temp[2], temp[3], temp[4])
+
     except:
         return
 

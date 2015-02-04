@@ -35,6 +35,9 @@ class Whois(object):
         return "%s!%s@%s * %s" % (
             self.nick, self.ident, self.host, self.name)
 
+    def set_chans(self, trigger):
+        self.chans = trigger
+
 
 class WhoisFailed(Exception):
     pass
@@ -128,6 +131,13 @@ def whois_found_reply(bot, trigger):
     bot.memory["whois"][nick] = Whois(trigger.args)
 
 
+@event('319')
+@rule(r'.*')
+def whois_chan_list(bot, trigger):
+    nick = trigger.args[1]
+    bot.memory["whois"][nick].set_chans(trigger)
+
+
 #@event('401')
 #@rule(r'.*')
 def whois_not_found_reply(bot, trigger):
@@ -147,3 +157,12 @@ def whois_not_found_reply(bot, trigger):
         del bot.memory["whois"][nick]
     except KeyError:
         pass
+
+
+@commands('whois')
+def display_whois(bot, trigger):
+    """PM's you the chans the nick is in."""
+    w = whois(bot, trigger.group().split()[1])
+    sleep(3)
+    bot.msg(trigger.nick,
+            "%s is on the following chans: %s" % (w.nick, w.chans))

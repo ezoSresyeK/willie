@@ -100,13 +100,14 @@ def ip(bot, trigger):
     """IP Lookup tool"""
     global channel
     channel = trigger.sender
+    query = None
     if not trigger.group(2):
         query = trigger.host
     if trigger.group(2).lower().find(".") == -1:
         try:
             query = whois(bot, trigger.group(2)).host
         except:
-            bot.reply("Could not find their hostmask.")
+            query =  trigger.group(2)
     else:
         query = trigger.group(2)
     ip_lookup(bot, query)
