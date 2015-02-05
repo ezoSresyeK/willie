@@ -16,6 +16,7 @@ from willie.module import commands, priority, OP, rule, \
 from willie.tools import Nick, WillieMemory
 from willie.config import ConfigurationError
 from willie.modules.whois import whois
+from willie import formatting
 
 
 gattr = {}
@@ -577,7 +578,8 @@ def set_topic(bot, trigger):
     """
 
     purple, green, bold = '\x0306', '\x0310', '\x02'
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
+    if not hasaccess(bot, trigger, trigger.sender, trigger.nick,
+                     "AaOo", True):
         return
     text = trigger.group(2)
     if text == '':
@@ -611,7 +613,8 @@ def set_mask(bot, trigger):
     """
     Set the mask to use for .topic in the current channel. %s is used to allow…                                                                        3…
     """
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
+    if not hasaccess(bot, trigger, trigger.sender, trigger.nick,
+                     "AaOo", True):
         return
     if not bot.db:
         bot.say("I'm afraid I can't do that.")
@@ -623,7 +626,8 @@ def set_mask(bot, trigger):
 @commands('showmask')
 def show_mask(bot, trigger):
     """Show the topic mask for the current channel."""
-    if bot.privileges[trigger.sender][trigger.nick] < OP:
+    if not hasaccess(bot, trigger, trigger.sender, trigger.nick,
+                     "AaOo", True):
         return
     if not bot.db:
         bot.say("I'm afraid I can't do that.")

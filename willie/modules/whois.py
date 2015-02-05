@@ -22,7 +22,7 @@ class Whois(object):
         self.datetime = datetime.now()
 
     def __repr__(self):
-        return "%s(nick=%r, ident=%r, host=%r, name=%r, datetime=%r)" % (
+        return '%s(nick=%r, ident=%r, host=%r, name=%r, datetime=%r)' % (
             self.__class__.__name__,
             self.nick,
             self.ident,
@@ -32,7 +32,7 @@ class Whois(object):
         )
 
     def __str__(self):
-        return "%s!%s@%s * %s" % (
+        return '%s!%s@%s * %s' % (
             self.nick, self.ident, self.host, self.name)
 
     def set_chans(self, trigger):
@@ -44,12 +44,12 @@ class WhoisFailed(Exception):
 
 
 def setup(bot):
-    bot.memory["whois"] = {}
+    bot.memory['whois'] = {}
 
 
 def check_setup(bot):
-    if "whois" not in bot.memory:
-        bot.memory["whois"] = {}
+    if 'whois' not in bot.memory:
+        bot.memory['whois'] = {}
 
 
 def _clear_old_entries(bot):
@@ -58,12 +58,12 @@ def _clear_old_entries(bot):
     than AGE_THRESHOLD.
     """
     to_del = []
-    for nick, whois in bot.memory["whois"].items():
+    for nick, whois in bot.memory['whois'].items():
         if whois.datetime < datetime.now() - AGE_THRESHOLD:
             to_del.append(nick)
     for nick in to_del:
         try:
-            del bot.memory["whois"][nick]
+            del bot.memory['whois'][nick]
         except KeyError:
             pass
 
@@ -83,24 +83,24 @@ def get_whois(bot, nick):
     """
     check_setup(bot)
     i = 0
-    while nick not in bot.memory["whois"] and i < 10:
+    while nick.lower() not in bot.memory['whois'] and i < 10:
         i += 1
         sleep(1)
 
-    if nick not in bot.memory["whois"]:
+    if nick.lower() not in bot.memory['whois']:
         return
-        #raise WhoisFailed("No reply from server")
-    elif bot.memory["whois"][nick] is None:
+        #raise WhoisFailed('No reply from server')
+    elif bot.memory['whois'][nick.lower()] is None:
         try:
-            del bot.memory["whois"][nick]
+            del bot.memory['whois'][nick.lower()]
         except KeyError:
             pass
-        #raise WhoisFailed("No such nickname")
+        #raise WhoisFailed('No such nickname')
 
     # A little housekeeping
     _clear_old_entries(bot)
 
-    return bot.memory["whois"][nick]
+    return bot.memory['whois'][nick.lower()]
 
 
 def whois(bot, nick):
@@ -112,7 +112,7 @@ def whois(bot, nick):
     # Remove entry first so that we get the latest
     check_setup(bot)
     try:
-        del bot.memory["whois"][nick]
+        del bot.memory['whois'][nick]
     except KeyError:
         pass
     send_whois(bot, nick)
@@ -128,14 +128,14 @@ def whois_found_reply(bot, trigger):
     """
     check_setup(bot)
     nick = trigger.args[1]
-    bot.memory["whois"][nick] = Whois(trigger.args)
+    bot.memory['whois'][nick.lower()] = Whois(trigger.args)
 
 
 @event('319')
 @rule(r'.*')
 def whois_chan_list(bot, trigger):
     nick = trigger.args[1]
-    bot.memory["whois"][nick].set_chans(trigger)
+    bot.memory['whois'][nick.lower()].set_chans(trigger)
 
 
 #@event('401')
@@ -148,13 +148,13 @@ def whois_not_found_reply(bot, trigger):
     """
     check_setup(bot)
     nick = trigger.args[1]
-    bot.memory["whois"][nick] = None
+    bot.memory['whois'][nick] = None
 
     # Give the initiating whois function time to see
     # that the lookup has failed, then remove the None.
     sleep(5)
     try:
-        del bot.memory["whois"][nick]
+        del bot.memory['whois'][nick]
     except KeyError:
         pass
 
@@ -162,7 +162,12 @@ def whois_not_found_reply(bot, trigger):
 @commands('whois')
 def display_whois(bot, trigger):
     """PM's you the chans the nick is in."""
-    w = whois(bot, trigger.group().split()[1])
-    sleep(3)
-    bot.msg(trigger.nick,
-            "%s is on the following chans: %s" % (w.nick, w.chans))
+    try:
+        w = whois(bot, trigger.group().split()[1])
+        sleep(3)
+        bot.msg(trigger.nick,
+                '%s is on the following chans: %s' % (w.nick, w.chans))
+    except:
+        bot.msg(trigger.nick,
+                '%s could not be found'
+                % (trigger.group().split()[1]))
