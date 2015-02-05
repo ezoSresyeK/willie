@@ -85,7 +85,7 @@ def get_whois(bot, nick):
     i = 0
     while nick.lower() not in bot.memory['whois'] and i < 10:
         i += 1
-        sleep(1)
+        sleep(2)
 
     if nick.lower() not in bot.memory['whois']:
         return
@@ -135,6 +135,8 @@ def whois_found_reply(bot, trigger):
 @rule(r'.*')
 def whois_chan_list(bot, trigger):
     nick = trigger.args[1]
+    if nick not in bot.memory['whois']:
+        sleep(3)
     bot.memory['whois'][nick.lower()].set_chans(trigger)
 
 
@@ -162,12 +164,13 @@ def whois_not_found_reply(bot, trigger):
 @commands('whois')
 def display_whois(bot, trigger):
     """PM's you the chans the nick is in."""
+    nick = trigger.group().split()[1]
     try:
-        w = whois(bot, trigger.group().split()[1])
+        w = whois(bot, nick)
         sleep(3)
         bot.msg(trigger.nick,
                 '%s is on the following chans: %s' % (w.nick, w.chans))
     except:
         bot.msg(trigger.nick,
                 '%s could not be found'
-                % (trigger.group().split()[1]))
+                % (nick))
