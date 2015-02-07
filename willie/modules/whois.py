@@ -140,8 +140,8 @@ def whois_chan_list(bot, trigger):
     bot.memory['whois'][nick.lower()].set_chans(trigger)
 
 
-#@event('401')
-#@rule(r'.*')
+@event('401')
+@rule(r'.*')
 def whois_not_found_reply(bot, trigger):
     """
     Listens for unsuccessful WHOIS responses and saves
@@ -151,6 +151,7 @@ def whois_not_found_reply(bot, trigger):
     check_setup(bot)
     nick = trigger.args[1]
     bot.memory['whois'][nick] = None
+    print("Encountered 401")
 
     # Give the initiating whois function time to see
     # that the lookup has failed, then remove the None.

@@ -53,11 +53,6 @@ def note(bot, trigger):
     sd = dict()
 
     try:
-        #print('Hostmask: ' + trigger.hostmask)
-        #print('Ident: ' +
-        #      trigger.hostmask.split('@')[0].split('!')[1])
-        #print('Nick: ' + trigger.hostmask.split('!')[0])
-        #print('Host: ' + trigger.hostmask.split('@')[1])
         sd['timestamp'] = time.strftime(
             "%a %b %d %H:%M:%S %Y", time.gmtime()).replace("'", "''")
         sd['channel'] = trigger.sender.replace("'", "''")

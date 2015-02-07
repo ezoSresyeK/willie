@@ -214,6 +214,13 @@ def sescapet(thing):
     ret = ret.replace('-', 'sss')
     return ret.replace('#', "ccc")
 
+def usescapet(thing):
+    ret = thing.replace("uuu", "^")
+    ret = ret.replace("ttt", "'")
+    ret = ret.replace("ddd", ".")
+    ret = ret.replace('sss', '-')
+    return ret.replace('ccc', '#')
+
 
 @commands('attr')
 @priority('high')
@@ -304,7 +311,7 @@ def getwhowhere(bot, trigger):
 
 def moduser(bot, trigger, emulate_protected, mode, req):
     whowhere = getwhowhere(bot, trigger)
-    chan = whowhere[0]
+    chan = whowhere[0].lower()
     nick = whowhere[1]
     nicks = list()
     index = 1
@@ -395,9 +402,12 @@ def kick(bot, trigger):
 
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
         return
+    actual_kick(bot, chan, nick, trigger.nick, reason)
 
+
+def actual_kick(bot, chan, nick, kicker, reason):
     bot.write(['KICK', chan, nick,
-               ':(' + trigger.nick + ') ' + reason])
+               ':(' + kicker + ') ' + reason])
 
 
 def get_ts_reason(bot, trigger, lastidx):
@@ -428,6 +438,8 @@ def banman(bot, trigger, mode, caller=None):
     ts, reason = get_ts_reason(bot, trigger, whowhere[2])
 
     if not hasaccess(bot, trigger, chan, nick, "AaOo", True):
+        return
+    if bot.privileges[chan][bot.nick] < OP:
         return
 
     if ts > 60:
@@ -668,8 +680,6 @@ def autoop(bot, trigger):
 def autoban(bot, trigger):
     nick = trigger.nick
     chan = trigger.sender
-    #tbl[nick] = (chan, 60, '+b', 'autoban', None)
-    #def actual_ban(bot, nick, chan, ts, mode, caller, reason):
 
     try:
         if hascap(bot, chan, nick, 'Bb'):
@@ -683,23 +693,6 @@ def autoban(bot, trigger):
 @interval(60 * 1)
 def clearmybans(bot):
     try:
-#        for b in bans:
-#            if b[2] == 1:
-#                if b[3] == 'gag':
-#                    bot.msg(b[1],
-#                            "ATTENTION: %s can talk again on %s"
-#                            % (b[4], b[1]))
-#                bot.write(['MODE', b[1], '-b', b[0]])
-#                bans.remove(b)
-#            else:
-#                nick = b[0]
-#                chan = b[1]
-#                ts = b[2] - 1
-#                caller = b[3]
-#                reason = b[4]
-#                bans.remove(b)
-#                bans.append((nick, chan, ts, caller, reason))
-
         bans = bot.memory['bans']
 
         for chan in bans:
