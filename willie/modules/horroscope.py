@@ -145,13 +145,14 @@ def splitmsg(msg):
 
     words = msg.split()
     length = 0
-    msg = ''
+    msg = words[0]
     lines = []
-    for word in words:
+    for word in words[1:]:
         if len(word) + length > 300:
             lines.append(msg)
             msg = ''
             length = 0
+            msg = word
         else:
             msg = msg + ' ' + word
             length = length + len(word)
