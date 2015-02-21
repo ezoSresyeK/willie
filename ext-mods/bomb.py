@@ -35,9 +35,9 @@ def start(bot, trigger):
     target = trigger.group(2).split(' ')[0]
     if not trigger.sender.startswith('#'):
         return
-    if target in bot.ops[trigger.sender] and trigger.sender not in \
-       bot.ops[trigger.sender]:
-        return
+#    if target in bot.ops[trigger.sender] and trigger.sender not in \
+#       bot.ops[trigger.sender]:
+#        return
     if target in bot.config.other_bots or target == bot.nick:
         return
     if target in bombs:
