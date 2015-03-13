@@ -14,7 +14,7 @@ from willie.modules.adminchan import hasaccess, actual_ban, \
 import json
 from time import sleep
 
-debug_enabled = True
+debug_enabled = False
 TIMER = 60 * 45
 if debug_enabled:
     TIMER = 60 * 5

@@ -13,6 +13,7 @@ http://willie.dftba.net
 from __future__ import unicode_literals
 
 import willie.module
+from willie.modules.adminchan import hasaccess
 
 
 def configure(config):
@@ -87,9 +88,11 @@ def msg(bot, trigger):
     admin.
     """
     if not trigger.is_privmsg:
-        return
+        if not hasaccess(bot, trigger, trigger.sender, trigger.nick, "AO", False):
+            return
     if not trigger.admin:
-        return
+        if not hasaccess(bot, trigger, trigger.sender, trigger.nick, "AO", False):
+            return
     if trigger.group(2) is None:
         return
 
@@ -109,9 +112,11 @@ def me(bot, trigger):
     by an admin.
     """
     if not trigger.is_privmsg:
-        return
+        if not hasaccess(bot, trigger, trigger.sender, trigger.nick, "AO", False):
+            return
     if not trigger.admin:
-        return
+        if not hasaccess(bot, trigger, trigger.sender, trigger.nick, "AO", False):
+            return
     if trigger.group(2) is None:
         return
 

@@ -97,6 +97,33 @@ def setusr(bot, table, user, privs):
     return "Set %s on %s" % (user, nprivs)
 
 
+def setuattr(bot, table, user, text):
+    attr = getuattr(bot, table, user)
+    attr = {}
+    attr['attr'] = text
+    tbl = getattr(bot.db, sescapet(table).lower())
+    tbl.update(sescapet(user), attr)
+
+
+def getuattr(bot, table, user):
+    if not bot.db.check_table(sescapet(table).lower(),
+                              gattr['cols'], gattr['id']):
+        bot.db.add_table(sescapet(table).lower(), gattr['cols'],
+                         gattr['id'])
+        return ""
+
+    exit = True
+    for key in getattr(bot.db, sescapet(table).lower()).keys('usr'):
+        if key[0] == sescapet(user):
+            exit = False
+    if exit:
+        return ""
+
+    text = getattr(bot.db, sescapet(table).lower()).get(
+        sescapet(user), ['attr'])
+    return text[0]
+
+
 def getusr(bot, table, user):
     if not bot.db.check_table(sescapet(table).lower(),
                               gattr['cols'], gattr['id']):
@@ -146,6 +173,11 @@ def list_access(bot, trigger, text):
                        sescapet(text[3]))
         bot.say('%s modes: %s' % (text[3], privs[0]))
         return
+    elif text[2] == 'attr':
+        privs = getuattr(bot, sescapet(trigger.sender).lower(),
+                       sescapet(text[3]))
+        bot.say('%s modes: %s' % (text[3], privs))
+        return
 
 
 def gset(bot, trigger, text):
@@ -190,6 +222,16 @@ def cset(bot, trigger, text):
                 (user, chan, privs))
 
     return
+
+
+def aset(bot, trigger, text):
+    user = text[2]
+    chan = text[3]
+    privs = text[4]
+
+    if hascap(bot, chan, trigger.nick, 'AaOo') or \
+       trigger.owner:
+        setuattr(bot, chan, '@@@', privs)
 
 
 def hascap(bot, place, user, req):
@@ -248,6 +290,8 @@ def attr(bot, trigger):
             gset(bot, trigger, text)
         elif text[1] == 'c':
             cset(bot, trigger, text)
+        elif text[1] == 'a':
+            aset(bot, trigger, text)
     except:
         bot.say('see .attr help')
     return
@@ -720,6 +764,48 @@ def joinperform(bot, trigger):
     autovoice(bot, trigger)
     autoop(bot, trigger)
     autoban(bot, trigger)
+
+
+@rule('.*')
+@priority('high')
+def bworddetect(bot, trigger):
+    try:
+        if hascap(bot, trigger.sender, trigger.nick, 'p'):
+            return
+        if not hascap(bot, trigger.sender, '@', 'w'):
+            return
+        if hasaccess(bot, trigger, trigger.sender, trigger.nick,
+                     'AaOo', True):
+            return
+    except:
+        return
+
+    props = None
+    words = None
+    doban = False
+
+    try:
+        props = getuattr(bot, trigger.sender, '@@@')
+    except:
+        return
+
+    if props and not props == '':
+        words = props.split(',')
+    else:
+        return
+
+    test = trigger
+
+    for word in words:
+        if word in test:
+            doban = True
+            break
+
+    if doban:
+        actual_ban(bot, trigger.nick, trigger.sender, 120, '+b',
+                   'bwscan', None)
+        actual_kick(bot, trigger.sender, trigger.nick, trigger.nick,
+                    'bad word detected')
 
 
 @rule('.*')

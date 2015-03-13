@@ -66,7 +66,7 @@ def note(bot, trigger):
         return
 
 
-@commands('seen')
+@commands('seen', 'last')
 def seen(bot, trigger):
     """Get the last message and mask of seen person.
 

@@ -37,7 +37,7 @@ ROULETTE_TMP = {
 }
 
 
-@commands('roulette')
+@commands('roulette', 'rusky')
 @priority('high')
 def roulette(bot, trigger):
     """Play a game of Russian Roulette"""

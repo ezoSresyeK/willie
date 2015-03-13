@@ -100,7 +100,10 @@ def get_whois(bot, nick):
     # A little housekeeping
     _clear_old_entries(bot)
 
-    return bot.memory['whois'][nick.lower()]
+    try:
+        return bot.memory['whois'][nick.lower()]
+    except KeyError:
+        return None
 
 
 def whois(bot, nick):
